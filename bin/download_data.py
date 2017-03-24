@@ -43,7 +43,7 @@ if ending_date is None:
 else:
     print('\t > Checking data from '+starting_date+' to '+ending_date+'...\n')
 # Get data from user file:
-f = open('userdata.dat','r')
+f = open('$HOME/.config/41p-lco/userdata.dat','r')
 username = (f.readline().split('=')[-1]).split()[0]
 password = (f.readline().split('=')[-1]).split()[0]
 datafolder = (f.readline().split('=')[-1]).split()[0]
