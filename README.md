@@ -11,3 +11,10 @@ Data pipeline for 41P/Tuttle-Giacobini-Kresak LCO outburst project.
 
 # Install
 The recommended installation is through a virtualenv installation.  See the wiki for details.
+
+# Pipeline overview
+## Inputs
+e11 and e91 data
+
+## Outputs
+Comet properites
