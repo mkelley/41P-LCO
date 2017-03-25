@@ -1,32 +1,100 @@
+"""tgk-sync - Sync observations with LCO.
+
+A portion of this code is based on Nestor Espinoza's lcogtDD.
+
+"""
+
+import logging
 
 class ConfigFileError(Exception):
     pass
 
+class AuthorizationError(Exception):
+    pass
+
+########################################################################
+class Logger(logging.Logger):
+    def __init__(self):
+        import os
+        from datetime import datetime
+        
+        logging.Logger.__init__(self, 'TGK Sync')
+
+        self.setLevel(logging.DEBUG)
+
+        formatter = logging.Formatter('%(levelname)s: %(message)s')
+        console = logging.StreamHandler(sys.stdout)
+        console.setLevel(logging.DEBUG)
+        console.setFormatter(formatter)
+        self.addHandler(console)
+        self.info('Logging to console.')
+
+        self.info('#' * 73)
+        self.info(datetime.now().isoformat())
+
+    def open_file(self, log_file):
+        formatter = logging.Formatter('%(levelname)s: %(message)s')
+        logfile = logging.FileHandler(log_file)
+        logfile.setLevel(logging.INFO)
+        logfile.setFormatter(formatter)
+        self.addHandler(logfile)
+        self.info('Logging to {}'.format(log_file))
+
+    def shutdown(self):
+        from astropy.time import Time
+        self.info('Logging termnated at {}'.format(Time.now().utc))
+        logging.shutdown()
+        
+########################################################################
 class TGKSync:
     """Sync observations with LCO.
+
+    Parameters
+    ----------
+    config_file : string
+      The name of a configuration file to read.
+    logger : logging.Logger, optional
+      Log to this `Logger` instance, otherwise log to the python
+      default.
 
     """
 
     _defaults = {
         'username': 'your@email',
         'password': 'your_password',
-        'proposals': 'LCO2016B-109',
+        'proposal': 'LCO2016B-109',
         'download path': '/full/path/to/your/download/directory'
     }
     
 
-    def __init__(self, config_file):
-        import json
-        
+    def __init__(self, config_file, logger=None):
+        import astropy.units as u
+        from astropy.time import Time
+        from json import JSONDecodeError
+
         self.config_file = config_file
+        self.request_delay = 1 * u.s
+        self.last_request = Time.now() - self.request_delay
         self.last_download = None
 
+        # read configuration file
         try:
             self._read_config()
-        except json.JSONDecodeError as e:
+        except JSONDecodeError as e:
             raise ConfigFileError('Error reading config file: {}\n{}'.format(config_file, e))
-        
-        self._setup_logger()
+
+        # begin logging
+        if logger is None:
+            self.logger = logging
+        else:
+            self.logger = logger
+            fn = os.sep.join([self.config['download path'], 'tgk-sync.log'])
+            self.logger.open_file(fn)
+            self.logger.info('Loaded configuration file: {}'.format(
+                self.config_file))
+
+        # get http authoration token from LCO
+        self._get_auth_token()
 
     @classmethod
     def show_config(cls, config_file):
@@ -58,47 +126,90 @@ Use --show-config for an example.""".format(self.config_file))
         if not os.path.isdir(self.config['download path']):
             raise OSError('Download path does not exist: {}'.format(self.config['download path']))
 
-    def _setup_logger(self):
-        import os
-        import logging
-        from datetime import datetime
-        
-        fn = os.sep.join([self.config['download path'], 'tgk-sync.log'])
-        
-        self.logger = logging.Logger('TGK Sync')
-        self.logger.setLevel(logging.DEBUG)
-        if len(self.logger.handlers) == 0:
-            formatter = logging.Formatter('%(levelname)s: %(message)s')
-            console = logging.StreamHandler(sys.stdout)
-            console.setLevel(logging.DEBUG)
-            console.setFormatter(formatter)
-            self.logger.addHandler(console)
-
-            logfile = logging.FileHandler(fn)
-            logfile.setLevel(logging.INFO)
-            logfile.setFormatter(formatter)
-            self.logger.addHandler(logfile)
-
-        self.logger.info('#' * 73)
-        self.logger.info(datetime.now().isoformat())
-        self.logger.info('Logging to console and {}'.format(fn))
-        self.logger.info('Loaded configuration file: {}'.format(
-            self.config_file))
-        
     def run(self):
-        from datetime import datetime
         from astropy.time import Time
         import astropy.units as u
 
-        now = Time(datetime.now())
+        now = Time.now()
+        dt = -1 * u.day  # search window
+
+        self.last_download = self.sync((now + dt))
         
-    def sync(self, **kwargs):
+    def sync(self, start, rlevels=[91], **kwargs):
+        """Request frames list from LCO and download, if needed.
+
+        Parameters
+        ----------
+        start : Time
+          Check for frames since `start`.  [UTC]
+        rlevels : list of int
+          Which reduction levels to check.
+
+        """
+        from astropy.time import Time
+
+        for rlevel in rlevels:
+            query = {
+                'PROPID': self.config['proposal'],
+                'limit': 50,
+                'RLEVEL': rlevel,
+                'start': start.iso[:10],
+            }
+            r = self.request('https://archive-api.lco.global/frames/',
+                             query=query)
+
+    def _get_auth_token(self):
         import requests
 
+        data = {
+            'username': self.config['username'],
+            'password': self.config['password']
+        }
+        r = requests.post('https://archive-api.lco.global/api-token-auth/',
+                          data=data).json()
+        token = r.get('token')
+        if token is None:
+            raise AuthorizationError('Authorization token not returned.')
+
+        self.auth = {'Authorization': 'Token ' + token}
+        self.logger.info('Obtained authoriation token.')
+
+    def request(self, url, query={}):
+        """Send HTTP request and return the output.
+
+        Limits the overall number of requests to slow down any runaway
+        code and prevent from exceeding the request limit.
+
+        Parameters
+        ----------
+        url : string
+          The URL.
+        param : dict, optional
+          The HTTP get parameters.
+
+        """
+        import time
+        from astropy.time import Time
+        import requests
+        
+        while (Time.now() - self.last_request) < self.request_delay:
+            time.sleep(1)
+
+        self.logger.info('Request: {}, {}'.format(url, query))
+        response = requests.get(url, params=query, headers=self.auth)
+        self.logger.debug(response.url)
+
+        data = response.json()
+        self.logger.info('Found {} frames.'.format(data['count']))
+        
+        return data
+
+########################################################################
 if __name__ == '__main__':
     import os
     import sys
     import argparse
+    from astropy.time import Time
 
     default_config = os.sep.join([os.path.expanduser('~'), '.config',
                                   '41p-lco', 'sync.cfg'])
@@ -107,6 +218,7 @@ if __name__ == '__main__':
     parser.add_argument('--config', default=default_config, help='Use this configuration file.')
     parser.add_argument('--show-config', action='store_true', help='Read and print the configuration file.')
     parser.add_argument('--show-defaults', action='store_true', help='Print the default configuration file.')
+    parser.add_argument('-v', action='store_true', help='Increase verbosity.')
 
     args = parser.parse_args()
 
@@ -119,9 +231,18 @@ if __name__ == '__main__':
         sys.exit()
 
     try:
-        sync = TGKSync(args.config)
+        logger = Logger()
+        sync = TGKSync(args.config, logger=logger)
         sync.run()
+        logging.shutdown()
     except Exception as e:
-        print(e)
-        exit()
+        err = '{}: {}'.format(type(e).__name__, e)
+        #logger.info(err)
+        logging.shutdown()
+
+        if args.v:
+            raise(e)
+        else:
+            print(err)
+            exit()
 
