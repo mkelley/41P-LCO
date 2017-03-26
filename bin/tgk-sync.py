@@ -145,36 +145,6 @@ class TGKSync:
         else:
             raise FileNotFoundError('Config file does not exist: {}'.format(config_file))
         
-    def sync(self, start, end=None, rlevels=[91]):
-        """Request frames list from LCO and download, if needed.
-
-        Only whole days are checked.
-
-        Parameters
-        ----------
-        start : Time
-          Check for frames since `start`.
-        end : Time
-          Check for frames no later than `end`.
-        rlevels : list of int
-          Which reduction levels to check.
-
-        """
-        from astropy.time import Time
-
-        for rlevel in rlevels:
-            query = {
-                'PROPID': self.config['proposal'],
-                'limit': 50,
-                'RLEVEL': rlevel,
-                'start': start.iso[:10],
-            }
-            if end is not None:
-                query['end'] = end.iso[:10]
-
-            r = self.request('https://archive-api.lco.global/frames/',
-                             query=query)
-
     def request(self, url, query={}):
         """Send HTTP request and return the output.
 
@@ -201,8 +171,6 @@ class TGKSync:
         self.logger.debug(response.url)
 
         data = response.json()
-        self.logger.info('Found {} frames.'.format(data['count']))
-        
         return data
 
     def _read_config(self):
@@ -221,17 +189,80 @@ Use --show-config for an example.""".format(self.config_file))
         if not os.path.isdir(self.config['download path']):
             raise OSError('Download path does not exist: {}'.format(self.config['download path']))
 
+    def _summarize_payload(self, payload):
+        """Summarize payload as a table and log it."""
+        import io
+        from astropy.table import Table
+
+        tab = Table(names=('filename', 'date_obs', 'filter', 'exptime'),
+                    dtype=('U64', 'U32', 'U16', float))
+        for meta in payload:
+            tab.add_row((meta['filename'], meta['DATE_OBS'], meta['FILTER'],
+                         float(meta['EXPTIME'])))
+        with io.StringIO() as s:
+            tab.write(s, format='ascii.fixed_width_two_line')
+            s.seek(0)
+            self.logger.info("File summary: \n" + s.read(-1))
+
+    def sync(self, start, end=None, rlevels=[91], download=True):
+        """Request frames list from LCO and download, if needed.
+
+        Only whole days are checked.
+
+        Parameters
+        ----------
+        start : Time
+          Check for frames since `start`.
+        end : Time, optional
+          Check for frames no later than `end`.
+        rlevels : list of int, optional
+          Which reduction levels to check.
+        download : bool, optional
+          Flag to download data.
+
+        """
+        from astropy.time import Time
+
+        for rlevel in rlevels:
+            query = {
+                'PROPID': self.config['proposal'],
+                'limit': 50,
+                'RLEVEL': rlevel,
+                'start': start.iso[:10],
+            }
+            if end is not None:
+                query['end'] = end.iso[:10]
+
+            data = self.request('https://archive-api.lco.global/frames/',
+                                query=query)
+            
+            self.logger.info('Found {} frames with reduction level {}.'.format(data['count'], rlevel))
+            payload = data['results']
+
+            if data['count'] > 0:
+                self._summarize_payload(payload)
+
+def list_of(type):
+    def to_list(s):
+        return [type(x) for x in s.split(',')]
+    return to_list
+        
 ########################################################################
 if __name__ == '__main__':
     import os
     import sys
     import argparse
+    import astropy.units as u
     from astropy.time import Time
 
     default_config = os.sep.join([os.path.expanduser('~'), '.config',
                                   '41p-lco', 'sync.cfg'])
     
-    parser = argparse.ArgumentParser(description='Master control program for monitoring LCO images of 41P.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description='Master control program for monitoring LCO images of 41P.')
+    parser.add_argument('--no-download', dest='download', action='store_false', help='Use this configuration file. (default: {})'.format(default_config))
+    parser.add_argument('--start', type=Time, default=Time.now() - 1 * u.day, help='Search for files taken on or after this date, UTC. (default: yesterday)')
+    parser.add_argument('--end', type=Time, help='Search for files before this date. (default: None)')
+    parser.add_argument('--rlevels', type=list_of(int), default=[11, 91], help='Check for frames with these reduction levels. (default: 11,91)')
     parser.add_argument('--config', default=default_config, help='Use this configuration file.')
     parser.add_argument('--show-config', action='store_true', help='Read and print the configuration file.')
     parser.add_argument('--show-defaults', action='store_true', help='Print the default configuration file.')
@@ -247,15 +278,17 @@ if __name__ == '__main__':
         TGKSync.show_config(None)
         sys.exit()
 
+    logger = Logger()
+
     try:
-        logger = Logger()
         sync = TGKSync(args.config, logger=logger)
-        sync.run()
-        logging.shutdown()
+        sync.sync(args.start, end=args.end, rlevels=args.rlevels,
+                  download=args.download)
+        logger.shutdown()
     except Exception as e:
         err = '{}: {}'.format(type(e).__name__, e)
-        #logger.info(err)
-        logging.shutdown()
+        logger.info(err)
+        logger.shutdown()
 
         if args.v:
             raise(e)
