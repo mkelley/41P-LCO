@@ -1,3 +1,4 @@
+# Licensed under a MIT style license - see LICENSE
 """tgk-sync - Sync observations with LCO.
 
 A portion of this code is based on Nestor Espinoza's lcogtDD.
@@ -96,68 +97,6 @@ class TGKSync:
         # get http authoration token from LCO
         self._get_auth_token()
 
-    @classmethod
-    def show_config(cls, config_file):
-        import os
-        import sys
-        import json
-
-        if config_file is None:
-            print(json.dumps(cls._defaults, indent=2))
-        elif os.path.exists(config_file):
-            with open(config_file) as inf:
-                config = json.load(inf)
-            print(json.dumps(config, indent=2))
-        else:
-            raise FileNotFoundError('Config file does not exist: {}'.format(config_file))
-        
-    def _read_config(self):
-        import os
-        import json
-
-        if os.path.exists(self.config_file):
-            with open(self.config_file) as inf:
-                self.config = json.load(inf)
-        else:
-            raise FileNotFoundError("""Configuration file not found: {}
-Use --show-config for an example.""".format(self.config_file))
-
-        # verify download path
-        if not os.path.isdir(self.config['download path']):
-            raise OSError('Download path does not exist: {}'.format(self.config['download path']))
-
-    def run(self):
-        from astropy.time import Time
-        import astropy.units as u
-
-        now = Time.now()
-        dt = -1 * u.day  # search window
-
-        self.last_download = self.sync((now + dt))
-        
-    def sync(self, start, rlevels=[91], **kwargs):
-        """Request frames list from LCO and download, if needed.
-
-        Parameters
-        ----------
-        start : Time
-          Check for frames since `start`.  [UTC]
-        rlevels : list of int
-          Which reduction levels to check.
-
-        """
-        from astropy.time import Time
-
-        for rlevel in rlevels:
-            query = {
-                'PROPID': self.config['proposal'],
-                'limit': 50,
-                'RLEVEL': rlevel,
-                'start': start.iso[:10],
-            }
-            r = self.request('https://archive-api.lco.global/frames/',
-                             query=query)
-
     def _get_auth_token(self):
         import requests
 
@@ -173,6 +112,68 @@ Use --show-config for an example.""".format(self.config_file))
 
         self.auth = {'Authorization': 'Token ' + token}
         self.logger.info('Obtained authoriation token.')
+
+    def montior(self):
+        """Continuuously check for new data.
+
+        Parameters
+        ----------
+        
+
+        """
+        
+        from astropy.time import Time
+        import astropy.units as u
+
+        now = Time.now()
+        dt = -1 * u.day  # search window
+
+        self.last_download = self.sync((now + dt))
+        
+    @classmethod
+    def show_config(cls, config_file):
+        import os
+        import sys
+        import json
+
+        if config_file is None:
+            print(json.dumps(cls._defaults, indent=2))
+        elif os.path.exists(config_file):
+            with open(config_file) as inf:
+                config = json.load(inf)
+            print(json.dumps(config, indent=2))
+        else:
+            raise FileNotFoundError('Config file does not exist: {}'.format(config_file))
+        
+    def sync(self, start, end=None, rlevels=[91]):
+        """Request frames list from LCO and download, if needed.
+
+        Only whole days are checked.
+
+        Parameters
+        ----------
+        start : Time
+          Check for frames since `start`.
+        end : Time
+          Check for frames no later than `end`.
+        rlevels : list of int
+          Which reduction levels to check.
+
+        """
+        from astropy.time import Time
+
+        for rlevel in rlevels:
+            query = {
+                'PROPID': self.config['proposal'],
+                'limit': 50,
+                'RLEVEL': rlevel,
+                'start': start.iso[:10],
+            }
+            if end is not None:
+                query['end'] = end.iso[:10]
+
+            r = self.request('https://archive-api.lco.global/frames/',
+                             query=query)
 
     def request(self, url, query={}):
         """Send HTTP request and return the output.
@@ -203,6 +204,22 @@ Use --show-config for an example.""".format(self.config_file))
         self.logger.info('Found {} frames.'.format(data['count']))
         
         return data
+
+    def _read_config(self):
+        """Read configuration file."""
+        import os
+        import json
+
+        if os.path.exists(self.config_file):
+            with open(self.config_file) as inf:
+                self.config = json.load(inf)
+        else:
+            raise FileNotFoundError("""Configuration file not found: {}
+Use --show-config for an example.""".format(self.config_file))
+
+        # verify download path
+        if not os.path.isdir(self.config['download path']):
+            raise OSError('Download path does not exist: {}'.format(self.config['download path']))
 
 ########################################################################
 if __name__ == '__main__':
