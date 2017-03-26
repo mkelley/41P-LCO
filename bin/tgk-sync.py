@@ -42,6 +42,13 @@ class Logger(logging.Logger):
         self.timestamp()
         self.info('Logging to {}'.format(log_file))
 
+    def log_table(self, tab):
+        import io
+        with io.StringIO() as s:
+            tab.write(s, format='ascii.fixed_width_two_line')
+            s.seek(0)
+            self.info("\n" + s.read(-1))
+        
     def shutdown(self):
         self.info('End logging.')
         self.timestamp()
@@ -69,9 +76,9 @@ class TGKSync:
         'username': 'your@email',
         'password': 'your_password',
         'proposal': 'LCO2016B-109',
-        'download path': '/full/path/to/your/download/directory'
+        'download path': '/full/path/to/your/download/directory',
+        'science path': '/full/path/to/your/science/directory'
     }
-    
 
     def __init__(self, config_file, logger=None):
         import astropy.units as u
@@ -84,10 +91,7 @@ class TGKSync:
         self.last_download = None
 
         # read configuration file
-        try:
-            self._read_config()
-        except JSONDecodeError as e:
-            raise ConfigFileError('Error reading config file: {}\n{}'.format(config_file, e))
+        self._read_config()
 
         # begin logging
         if logger is None:
@@ -136,7 +140,7 @@ class TGKSync:
         if os.path.exists(filename):
             self.logger.debug(
                 '{} already exists, skipping download.'.format(filename))
-            raise ArchiveFileAlreadExists(filename)
+            raise ArchiveFileAlreadyExists(filename)
         else:
             self.logger.info('Downloading to {}.'.format(filename))
             with open(filename, 'wb') as outf:
@@ -158,23 +162,43 @@ class TGKSync:
         self.auth = {'Authorization': 'Token ' + token}
         self.logger.info('Obtained authoriation token.')
 
-    def montior(self):
+    def monitor(self, rlevels=[91], download=True):
         """Continuuously check for new data.
 
         Parameters
         ----------
-        
+        rlevels : list of int, optional
+          Reduction levels to check.
+        download : bool, optional
+          Download flag.
 
         """
         
         from astropy.time import Time
         import astropy.units as u
+        import time
 
-        now = Time.now()
-        dt = -1 * u.day  # search window
+        window = 1 * u.day  # search window
+        cadence = 2 * u.hr  # search cadence
+        last_sync = Time('2000-01-01')
+        self.logger.timestamp()
+        self.logger.info('Entering continuous sync mode, checking LCO archive every {} with a {}-wide search window.'.format(cadence, window))
 
-        self.last_download = self.sync((now + dt))
-        
+        try:
+            while True:
+                now = Time.now()
+                if (now - last_sync) > cadence:
+                    self.logger.timestamp()
+                    self.logger.info('Sync with LCO archive.')
+                    self.sync(now - window, rlevels=rlevels, download=download)
+                    last_sync = Time.now()
+                else:
+                    self.logger.debug('Last sync: {:.0f} s ago.  Sleep 60 s.'.format((now - last_sync).sec))
+                    time.sleep(60)
+                    self.logger.debug('Awake!')
+        except KeyboardInterrupt:
+            self.logger.info('Caught interrupt signal.  Shutdown.')
+
     @classmethod
     def show_config(cls, config_file):
         import os
@@ -189,7 +213,7 @@ class TGKSync:
             print(json.dumps(config, indent=2))
         else:
             raise FileNotFoundError('Config file does not exist: {}'.format(config_file))
-        
+
     def request(self, url, query={}):
         """Send HTTP request and return the output.
 
@@ -207,7 +231,7 @@ class TGKSync:
         import time
         from astropy.time import Time
         import requests
-        
+
         while (Time.now() - self.last_request) < self.request_delay:
             time.sleep(1)
 
@@ -225,18 +249,28 @@ class TGKSync:
 
         if os.path.exists(self.config_file):
             with open(self.config_file) as inf:
-                self.config = json.load(inf)
+                try:
+                    self.config = json.load(inf)
+                except JSONDecodeError as e:
+                    raise ConfigFileError(
+                        'Error reading config file: {}\n{}'.format(
+                            config_file, e))
         else:
             raise FileNotFoundError("""Configuration file not found: {}
 Use --show-config for an example.""".format(self.config_file))
+
+        # Verify all keys are present
+        missing = [k for k in self._defaults.keys()
+                   if k not in self.config.keys()]
+        if len(missing) > 0:
+            raise ConfigFileError('Missing {} from config file.  See\n --show-config for examples.'.format(missing))
 
         # verify download path
         if not os.path.isdir(self.config['download path']):
             raise OSError('Download path does not exist: {}'.format(self.config['download path']))
 
     def _summarize_payload(self, payload):
-        """Summarize payload as a table and log it."""
-        import io
+        """Summarize payload as a table."""
         from astropy.table import Table
 
         tab = Table(names=('filename', 'date_obs', 'filter', 'exptime'),
@@ -244,10 +278,7 @@ Use --show-config for an example.""".format(self.config_file))
         for meta in payload:
             tab.add_row((meta['filename'], meta['DATE_OBS'], meta['FILTER'],
                          float(meta['EXPTIME'])))
-        with io.StringIO() as s:
-            tab.write(s, format='ascii.fixed_width_two_line')
-            s.seek(0)
-            self.logger.info("File summary: \n" + s.read(-1))
+        return tab
 
     def sync(self, start, end=None, rlevels=[91], download=True):
         """Request frames list from LCO and download, if needed.
@@ -286,19 +317,26 @@ Use --show-config for an example.""".format(self.config_file))
                 data['count'], rlevel))
 
             dl_count = 0
+            skip_count = 0
             while True:  # loop over all payload sets
                 payload = data['results']
 
                 if data['count'] > 0:
+                    tab = self._summarize_payload(payload)
                     if download:
-                        for meta in payload:
+                        downloaded = []
+                        for i, meta in enumerate(payload):
                             try:
                                 self._download_frame(meta)
                                 dl_count += 1
+                                downloaded.append(i)
                             except ArchiveFileAlreadyExists:
+                                skip_count += 1
                                 pass
-
-                    self._summarize_payload(payload)
+                        if len(downloaded) > 0:
+                            self.logger.log_table(tab[downloaded])
+                    else:
+                        self.logger.log_table(tab)
 
                 if data['next'] is not None:
                     # get next payload set
@@ -307,7 +345,8 @@ Use --show-config for an example.""".format(self.config_file))
                     break  # end while loop
 
             self.logger.timestamp()
-            self.logger.info('Downloaded {} files'.format(dl_count))
+            self.logger.info('Downloaded {} files, {} skipped.'.format(
+                dl_count, skip_count))
 
 def list_of(type):
     def to_list(s):
@@ -323,13 +362,14 @@ if __name__ == '__main__':
     from astropy.time import Time
 
     default_config = os.sep.join([os.path.expanduser('~'), '.config',
-                                  '41p-lco', 'sync.cfg'])
-    
-    parser = argparse.ArgumentParser(description='Master control program for monitoring LCO images of 41P.')
+                                  '41p-lco', 'config.json'])
+
+    parser = argparse.ArgumentParser(description='Sync with LCO archive.')
     parser.add_argument('--no-download', dest='download', action='store_false', help='Use this configuration file. (default: {})'.format(default_config))
     parser.add_argument('--start', type=Time, default=Time.now() - 1 * u.day, help='Search for files taken on or after this date (UTC). (default: yesterday)')
     parser.add_argument('--end', type=Time, help='Search for files before this datem (UTC). (default: None)')
-    parser.add_argument('--rlevels', type=list_of(int), default=[11, 91], help='Check for frames with these reduction levels. (default: 11,91)')
+    parser.add_argument('--rlevels', type=list_of(int), default=[91], help='Check for frames with these reduction levels. (default: 91)')
+    parser.add_argument('--monitor', action='store_true', help='Continously check LCO for new data.')
     parser.add_argument('--config', default=default_config, help='Use this configuration file.')
     parser.add_argument('--show-config', action='store_true', help='Read and print the configuration file.')
     parser.add_argument('--show-defaults', action='store_true', help='Print the default configuration file.')
@@ -349,8 +389,11 @@ if __name__ == '__main__':
 
     try:
         sync = TGKSync(args.config, logger=logger)
-        sync.sync(args.start, end=args.end, rlevels=args.rlevels,
-                  download=args.download)
+        if args.monitor:
+            sync.monitor(rlevels=args.rlevels, download=args.download)
+        else:
+            sync.sync(args.start, end=args.end, rlevels=args.rlevels,
+                      download=args.download)
         logger.shutdown()
     except Exception as e:
         err = '{}: {}'.format(type(e).__name__, e)
