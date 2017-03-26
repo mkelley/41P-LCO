@@ -162,8 +162,8 @@ class TGKSync:
         self.auth = {'Authorization': 'Token ' + token}
         self.logger.info('Obtained authoriation token.')
 
-    def monitor(self, rlevels=[91], download=True):
-        """Continuuously check for new data.
+    def continuous_sync(self, rlevels=[91], download=True):
+        """Continuously check for new data.
 
         Parameters
         ----------
@@ -369,7 +369,7 @@ if __name__ == '__main__':
     parser.add_argument('--start', type=Time, default=Time.now() - 1 * u.day, help='Search for files taken on or after this date (UTC). (default: yesterday)')
     parser.add_argument('--end', type=Time, help='Search for files before this datem (UTC). (default: None)')
     parser.add_argument('--rlevels', type=list_of(int), default=[91], help='Check for frames with these reduction levels. (default: 91)')
-    parser.add_argument('--monitor', action='store_true', help='Continously check LCO for new data.')
+    parser.add_argument('--continuous', action='store_true', help='Continously check LCO for new data.')
     parser.add_argument('--config', default=default_config, help='Use this configuration file.')
     parser.add_argument('--show-config', action='store_true', help='Read and print the configuration file.')
     parser.add_argument('--show-defaults', action='store_true', help='Print the default configuration file.')
@@ -389,8 +389,8 @@ if __name__ == '__main__':
 
     try:
         sync = TGKSync(args.config, logger=logger)
-        if args.monitor:
-            sync.monitor(rlevels=args.rlevels, download=args.download)
+        if args.continuous:
+            sync.continuous_sync(rlevels=args.rlevels, download=args.download)
         else:
             sync.sync(args.start, end=args.end, rlevels=args.rlevels,
                       download=args.download)
