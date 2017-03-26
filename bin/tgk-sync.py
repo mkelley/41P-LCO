@@ -13,38 +13,43 @@ class ConfigFileError(Exception):
 class AuthorizationError(Exception):
     pass
 
+class ArchiveFileAlreadyExists(Exception):
+    pass
+
 ########################################################################
 class Logger(logging.Logger):
-    def __init__(self):
+    def __init__(self, debug=False):
         import os
-        from datetime import datetime
         
         logging.Logger.__init__(self, 'TGK Sync')
-
-        self.setLevel(logging.DEBUG)
+        self.loglevel = logging.DEBUG if debug else logging.INFO
+        self.setLevel(self.loglevel)
 
         formatter = logging.Formatter('%(levelname)s: %(message)s')
         console = logging.StreamHandler(sys.stdout)
-        console.setLevel(logging.DEBUG)
+        console.setLevel(self.loglevel)
         console.setFormatter(formatter)
         self.addHandler(console)
-        self.info('Logging to console.')
-
-        self.info('#' * 73)
-        self.info(datetime.now().isoformat())
 
     def open_file(self, log_file):
         formatter = logging.Formatter('%(levelname)s: %(message)s')
         logfile = logging.FileHandler(log_file)
-        logfile.setLevel(logging.INFO)
+        logfile.setLevel(self.loglevel)
         logfile.setFormatter(formatter)
         self.addHandler(logfile)
+        
+        self.info('#' * 73)
+        self.timestamp()
         self.info('Logging to {}'.format(log_file))
 
     def shutdown(self):
-        from astropy.time import Time
-        self.info('Logging termnated at {}'.format(Time.now().utc))
+        self.info('End logging.')
+        self.timestamp()
         logging.shutdown()
+
+    def timestamp(self):
+        from datetime import datetime
+        self.info(datetime.now().isoformat())
         
 ########################################################################
 class TGKSync:
@@ -97,6 +102,46 @@ class TGKSync:
         # get http authoration token from LCO
         self._get_auth_token()
 
+    def _download_frame(self, meta):
+        """Download a frame described by metadata from an LCO frame payload.
+
+        Target location:
+          download_path/e(rlevel)/UTC_date/filename
+
+        If the file already exists, the download is skipped.
+
+        Raises
+        ------
+        ArchiveFileAlreadyExists
+
+        """
+        import os
+        import requests
+        
+        # first, verify target path and create subdirectories if needed
+        d = self.config['download path']
+        for tail in ('e{}'.format(meta['RLEVEL']),
+                     meta['DATE_OBS'][:10].replace('-', '')):
+            d = os.sep.join([d, tail])
+            if os.path.exists(d):
+                assert os.path.isdir(d), \
+                    '{} exists, but is not a directory'.format(d)
+            else:
+                os.mkdir(d)
+
+        # archive file name format:
+        # (site)(tel)-(instr)-YYYYMMDD-(frame)-(type)(red.level).fits
+        filename = os.sep.join([d, meta['filename']])
+
+        if os.path.exists(filename):
+            self.logger.debug(
+                '{} already exists, skipping download.'.format(filename))
+            raise ArchiveFileAlreadExists(filename)
+        else:
+            self.logger.info('Downloading to {}.'.format(filename))
+            with open(filename, 'wb') as outf:
+                outf.write(requests.get(meta['url']).content)
+        
     def _get_auth_token(self):
         import requests
 
@@ -221,6 +266,7 @@ Use --show-config for an example.""".format(self.config_file))
           Flag to download data.
 
         """
+        import os
         from astropy.time import Time
 
         for rlevel in rlevels:
@@ -233,14 +279,35 @@ Use --show-config for an example.""".format(self.config_file))
             if end is not None:
                 query['end'] = end.iso[:10]
 
+            self.logger.timestamp()
             data = self.request('https://archive-api.lco.global/frames/',
                                 query=query)
-            
-            self.logger.info('Found {} frames with reduction level {}.'.format(data['count'], rlevel))
-            payload = data['results']
+            self.logger.info('Found {} frames with reduction level {}.'.format(
+                data['count'], rlevel))
 
-            if data['count'] > 0:
-                self._summarize_payload(payload)
+            dl_count = 0
+            while True:  # loop over all payload sets
+                payload = data['results']
+
+                if data['count'] > 0:
+                    if download:
+                        for meta in payload:
+                            try:
+                                self._download_frame(meta)
+                                dl_count += 1
+                            except ArchiveFileAlreadyExists:
+                                pass
+
+                    self._summarize_payload(payload)
+
+                if data['next'] is not None:
+                    # get next payload set
+                    data = self.request(data['next'])
+                else:
+                    break  # end while loop
+
+            self.logger.timestamp()
+            self.logger.info('Downloaded {} files'.format(dl_count))
 
 def list_of(type):
     def to_list(s):
@@ -278,7 +345,7 @@ if __name__ == '__main__':
         TGKSync.show_config(None)
         sys.exit()
 
-    logger = Logger()
+    logger = Logger(debug=args.v)
 
     try:
         sync = TGKSync(args.config, logger=logger)
@@ -287,12 +354,12 @@ if __name__ == '__main__':
         logger.shutdown()
     except Exception as e:
         err = '{}: {}'.format(type(e).__name__, e)
-        logger.info(err)
+        logger.error(err)
         logger.shutdown()
 
         if args.v:
             raise(e)
         else:
             print(err)
-            exit()
+            sys.exit()
 
