@@ -327,8 +327,8 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Master control program for monitoring LCO images of 41P.')
     parser.add_argument('--no-download', dest='download', action='store_false', help='Use this configuration file. (default: {})'.format(default_config))
-    parser.add_argument('--start', type=Time, default=Time.now() - 1 * u.day, help='Search for files taken on or after this date, UTC. (default: yesterday)')
-    parser.add_argument('--end', type=Time, help='Search for files before this date. (default: None)')
+    parser.add_argument('--start', type=Time, default=Time.now() - 1 * u.day, help='Search for files taken on or after this date (UTC). (default: yesterday)')
+    parser.add_argument('--end', type=Time, help='Search for files before this datem (UTC). (default: None)')
     parser.add_argument('--rlevels', type=list_of(int), default=[11, 91], help='Check for frames with these reduction levels. (default: 11,91)')
     parser.add_argument('--config', default=default_config, help='Use this configuration file.')
     parser.add_argument('--show-config', action='store_true', help='Read and print the configuration file.')
