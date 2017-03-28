@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+# Licensed under a MIT style license - see LICENSE
+import os
+import sys
+import argparse
+import logging
+import tgk
+from tgk.core import Logger, list_of
+
+default_config = os.sep.join([os.path.expanduser('~'), '.config',
+                              '41p-lco', 'config.json'])
+
+parser = argparse.ArgumentParser(description='41P/TGK science pipeline.')
+parser.add_argument('--config', default=default_config,
+                help=('Use this configuration file.'
+                      ' (default: {})'.format(default_config)))
+parser.add_argument('--show-config', action='store_true',
+                    help='Read and print the configuration file.')
+parser.add_argument('--show-defaults', action='store_true',
+                    help='Print the default configuration file.')
+parser.add_argument('-v', action='store_true', help='Increase verbosity.')
+
+args = parser.parse_args()
+
+if args.show_config:
+    tgk.show_config(args.config)
+    sys.exit()
+
+if args.show_defaults:
+    tgk.show_config(None)
+    sys.exit()
+
+logger = Logger(debug=args.v)
+
+try:
+    science = tgk.Science(args.config, logger=logger)
+    print('No science yet :(')
+    logger.shutdown()
+except Exception as e:
+    err = '{}: {}'.format(type(e).__name__, e)
+    logger.error(err)
+    logger.shutdown()
+
+    if args.v:
+        raise(e)
+    else:
+        print(err)
+        sys.exit()
