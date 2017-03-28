@@ -196,6 +196,7 @@ class Sync(TGKMaster):
                 'limit': 50,
                 'RLEVEL': rlevel,
                 'start': start.iso[:10],
+                'OBJECT': '41P',
             }
             if end is not None:
                 query['end'] = end.iso[:10]
