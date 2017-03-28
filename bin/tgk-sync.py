@@ -1,7 +1,8 @@
 # Licensed under a MIT style license - see LICENSE
-"""tgk-sync - Sync observations with LCO.
+"""tgk-sync/science - Master control programs for the 41P LCO Outburst project.
 
-A portion of this code is based on Nestor Espinoza's lcogtDD.
+Thanks to Nestor Espinoza's lcogtDD for an example on syncing with the
+LCO archive.
 
 """
 
@@ -57,9 +58,99 @@ class Logger(logging.Logger):
     def timestamp(self):
         from datetime import datetime
         self.info(datetime.now().isoformat())
-        
+
 ########################################################################
-class TGKSync:
+class TGKMaster:
+    """Master class for TGK programs.
+
+    Parameters
+    ----------
+    config_file : string
+      The name of a configuration file to read.
+    logger : logging.Logger, optional
+      Log to this `Logger` instance, otherwise log to the python
+      default.
+    log_file : string or tuple, optional
+      Name of a file to log at, or the config parameter and a file
+      name to join together.  Requires `logger`.
+
+    """
+
+    _defaults = {
+        'username': 'your@email',
+        'password': 'your_password',
+        'proposal': 'LCO2016B-109',
+        'download path': '/full/path/to/your/download/directory',
+        'science path': '/full/path/to/your/science/directory'
+    }
+
+    def __init__(self, config_file, logger=None, log_file=None):
+        self.config_file = config_file
+
+        # read configuration file
+        self._read_config()
+
+        # begin logging
+        if logger is None:
+            self.logger = logging
+        else:
+            self.logger = logger
+            if log_file is not None:
+                assert isinstance(log_file, (tuple, str))
+                if isinstance(log_file, tuple):
+                    fn = os.sep.join((self.config[log_file[0]], log_file[1]))
+                else:
+                    fn = log_file[1]
+                    
+                self.logger.open_file(fn)
+
+        self.logger.info('Loaded configuration file: {}'.format(
+            self.config_file))
+
+    @classmethod
+    def show_config(cls, config_file):
+        import os
+        import sys
+        import json
+
+        if config_file is None:
+            print(json.dumps(cls._defaults, indent=2))
+        elif os.path.exists(config_file):
+            with open(config_file) as inf:
+                config = json.load(inf)
+            print(json.dumps(config, indent=2))
+        else:
+            raise FileNotFoundError('Config file does not exist: {}'.format(config_file))
+
+    def _read_config(self):
+        """Read configuration file."""
+        import os
+        import json
+
+        if os.path.exists(self.config_file):
+            with open(self.config_file) as inf:
+                try:
+                    self.config = json.load(inf)
+                except JSONDecodeError as e:
+                    raise ConfigFileError(
+                        'Error reading config file: {}\n{}'.format(
+                            config_file, e))
+        else:
+            raise FileNotFoundError("""Configuration file not found: {}
+Use --show-config for an example.""".format(self.config_file))
+
+        # Verify all keys are present
+        missing = [k for k in self._defaults.keys()
+                   if k not in self.config.keys()]
+        if len(missing) > 0:
+            raise ConfigFileError('Missing {} from config file.  See\n --show-config for examples.'.format(missing))
+
+        # verify download path
+        if not os.path.isdir(self.config['download path']):
+            raise OSError('Download path does not exist: {}'.format(self.config['download path']))
+
+########################################################################
+class TGKSync(TGKMaster):
     """Sync observations with LCO.
 
     Parameters
@@ -72,38 +163,18 @@ class TGKSync:
 
     """
 
-    _defaults = {
-        'username': 'your@email',
-        'password': 'your_password',
-        'proposal': 'LCO2016B-109',
-        'download path': '/full/path/to/your/download/directory',
-        'science path': '/full/path/to/your/science/directory'
-    }
-
     def __init__(self, config_file, logger=None):
         import astropy.units as u
         from astropy.time import Time
-        from json import JSONDecodeError
 
-        self.config_file = config_file
         self.request_delay = 1 * u.s
         self.last_request = Time.now() - self.request_delay
         self.last_download = None
 
-        # read configuration file
-        self._read_config()
+        TGKMaster.__init__(self, config_file, logger=logger,
+                           log_file=('download path', 'tgk-sync.log'))
 
-        # begin logging
-        if logger is None:
-            self.logger = logging
-        else:
-            self.logger = logger
-            fn = os.sep.join([self.config['download path'], 'tgk-sync.log'])
-            self.logger.open_file(fn)
-            self.logger.info('Loaded configuration file: {}'.format(
-                self.config_file))
-
-        # get http authoration token from LCO
+        # get http authorization token from LCO
         self._get_auth_token()
 
     def _download_frame(self, meta):
@@ -199,21 +270,6 @@ class TGKSync:
         except KeyboardInterrupt:
             self.logger.info('Caught interrupt signal.  Shutdown.')
 
-    @classmethod
-    def show_config(cls, config_file):
-        import os
-        import sys
-        import json
-
-        if config_file is None:
-            print(json.dumps(cls._defaults, indent=2))
-        elif os.path.exists(config_file):
-            with open(config_file) as inf:
-                config = json.load(inf)
-            print(json.dumps(config, indent=2))
-        else:
-            raise FileNotFoundError('Config file does not exist: {}'.format(config_file))
-
     def request(self, url, query={}):
         """Send HTTP request and return the output.
 
@@ -241,33 +297,6 @@ class TGKSync:
 
         data = response.json()
         return data
-
-    def _read_config(self):
-        """Read configuration file."""
-        import os
-        import json
-
-        if os.path.exists(self.config_file):
-            with open(self.config_file) as inf:
-                try:
-                    self.config = json.load(inf)
-                except JSONDecodeError as e:
-                    raise ConfigFileError(
-                        'Error reading config file: {}\n{}'.format(
-                            config_file, e))
-        else:
-            raise FileNotFoundError("""Configuration file not found: {}
-Use --show-config for an example.""".format(self.config_file))
-
-        # Verify all keys are present
-        missing = [k for k in self._defaults.keys()
-                   if k not in self.config.keys()]
-        if len(missing) > 0:
-            raise ConfigFileError('Missing {} from config file.  See\n --show-config for examples.'.format(missing))
-
-        # verify download path
-        if not os.path.isdir(self.config['download path']):
-            raise OSError('Download path does not exist: {}'.format(self.config['download path']))
 
     def _summarize_payload(self, payload):
         """Summarize payload as a table."""
@@ -365,12 +394,12 @@ if __name__ == '__main__':
                                   '41p-lco', 'config.json'])
 
     parser = argparse.ArgumentParser(description='Sync with LCO archive.')
-    parser.add_argument('--no-download', dest='download', action='store_false', help='Use this configuration file. (default: {})'.format(default_config))
+    parser.add_argument('--no-download', dest='download', action='store_false', help='Check the archive, do not download any data.')
     parser.add_argument('--start', type=Time, default=Time.now() - 1 * u.day, help='Search for files taken on or after this date (UTC). (default: yesterday)')
     parser.add_argument('--end', type=Time, help='Search for files before this datem (UTC). (default: None)')
     parser.add_argument('--rlevels', type=list_of(int), default=[91], help='Check for frames with these reduction levels. (default: 91)')
     parser.add_argument('--continuous', action='store_true', help='Continously check LCO for new data.')
-    parser.add_argument('--config', default=default_config, help='Use this configuration file.')
+    parser.add_argument('--config', default=default_config, help='Use this configuration file. (default: {})'.format(default_config))
     parser.add_argument('--show-config', action='store_true', help='Read and print the configuration file.')
     parser.add_argument('--show-defaults', action='store_true', help='Print the default configuration file.')
     parser.add_argument('-v', action='store_true', help='Increase verbosity.')
