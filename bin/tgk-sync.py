@@ -377,21 +377,34 @@ class TGKSync(TGKMaster):
             self.logger.info('Downloaded {} files, {} skipped.'.format(
                 dl_count, skip_count))
 
+########################################################################
+class TGKScience(TGKMaster):
+    """Comet science with LCO data.
+
+    Parameters
+    ----------
+    config_file : string
+      The name of a configuration file to read.
+    logger : logging.Logger, optional
+      Log to this `Logger` instance, otherwise log to the python
+      default.
+
+    """
+    pass
+
+########################################################################
+# for command line parsing
 def list_of(type):
     def to_list(s):
         return [type(x) for x in s.split(',')]
     return to_list
         
 ########################################################################
-if __name__ == '__main__':
-    import os
+def sync_main(default_config):
     import sys
     import argparse
     import astropy.units as u
     from astropy.time import Time
-
-    default_config = os.sep.join([os.path.expanduser('~'), '.config',
-                                  '41p-lco', 'config.json'])
 
     parser = argparse.ArgumentParser(description='Sync with LCO archive.')
     parser.add_argument('--no-download', dest='download', action='store_false', help='Check the archive, do not download any data.')
@@ -407,11 +420,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.show_config:
-        TGKSync.show_config(args.config)
+        TGKMaster.show_config(args.config)
         sys.exit()
 
     if args.show_defaults:
-        TGKSync.show_config(None)
+        TGKMaster.show_config(None)
         sys.exit()
 
     logger = Logger(debug=args.v)
@@ -435,3 +448,54 @@ if __name__ == '__main__':
             print(err)
             sys.exit()
 
+########################################################################
+def science_main(default_config):
+    import sys
+    import argparse
+
+    parser = argparse.ArgumentParser(description='41P/TGK science pipeline.')
+    parser.add_argument('--config', default=default_config, help='Use this configuration file. (default: {})'.format(default_config))
+    parser.add_argument('--show-config', action='store_true', help='Read and print the configuration file.')
+    parser.add_argument('--show-defaults', action='store_true', help='Print the default configuration file.')
+    parser.add_argument('-v', action='store_true', help='Increase verbosity.')
+
+    args = parser.parse_args()
+
+    if args.show_config:
+        TGKMaster.show_config(args.config)
+        sys.exit()
+
+    if args.show_defaults:
+        TGKMaster.show_config(None)
+        sys.exit()
+
+    logger = Logger(debug=args.v)
+
+    try:
+        science = TGKScience(args.config, logger=logger)
+        print('No science yet :(')
+        logger.shutdown()
+    except Exception as e:
+        err = '{}: {}'.format(type(e).__name__, e)
+        logger.error(err)
+        logger.shutdown()
+
+        if args.v:
+            raise(e)
+        else:
+            print(err)
+            sys.exit()
+
+########################################################################
+if __name__ == '__main__':
+    import os
+    import sys
+    
+    default_config = os.sep.join([os.path.expanduser('~'), '.config',
+                                  '41p-lco', 'config.json'])
+
+    assert sys.argv[0] in ['tgk-sync.py', 'tgk-science.py']
+    if sys.argv[0] == 'tgk-sync.py':
+        sync_main(default_config)
+    else:
+        science_main(default_config)
