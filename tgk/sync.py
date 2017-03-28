@@ -122,8 +122,11 @@ class Sync(TGKMaster):
                     self.sync(now - window, rlevels=rlevels, download=download)
                     last_sync = Time.now()
                 else:
-                    self.logger.debug('Last sync: {:.0f} s ago.  Sleep 60 s.'.format((now - last_sync).sec))
-                    time.sleep(60)
+                    dt = int((now - last_sync).sec)
+                    sleep = int(cadence.to(u.s).value) - dt + 2
+                    self.logger.debug(
+                        'Last sync: {} s ago.  Sleep {} s.'.format(dt, sleep))
+                    time.sleep(sleep)
                     self.logger.debug('Awake!')
         except KeyboardInterrupt:
             self.logger.info('Caught interrupt signal.  Shutdown.')
