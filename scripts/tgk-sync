@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+# Licensed under a MIT style license - see LICENSE
+import os
+import sys
+import argparse
+import logging
+import astropy.units as u
+from astropy.time import Time
+import tgk
+from tgk.core import Logger, list_of
+
+default_config = os.sep.join([os.path.expanduser('~'), '.config',
+                              '41p-lco', 'config.json'])
+
+parser = argparse.ArgumentParser(description='Sync with LCO archive.')
+parser.add_argument('--no-download', dest='download', action='store_false',
+                    help='Check the archive, do not download any data.')
+parser.add_argument('--start', type=Time, default=Time.now() - 1 * u.day,
+                    help=('Search for files taken on or after this date (UTC).'
+                          ' (default: yesterday)'))
+parser.add_argument('--end', type=Time,
+                    help=('Search for files before this datem (UTC).'
+                          ' (default: None)'))
+parser.add_argument('--rlevels', type=list_of(int), default=[91],
+                    help=('Check for frames with these reduction levels.'
+                          ' (default: 91)'))
+parser.add_argument('--continuous', action='store_true',
+                    help='Continously check LCO for new data.')
+parser.add_argument('--config', default=default_config,
+                    help=('Use this configuration file.'
+                          ' (default: {})'.format(default_config)))
+parser.add_argument('--show-config', action='store_true',
+                    help='Read and print the configuration file.')
+parser.add_argument('--show-defaults', action='store_true',
+                    help='Print the default configuration file.')
+parser.add_argument('-v', action='store_true',
+                    help='Increase verbosity.')
+
+args = parser.parse_args()
+
+if args.show_config:
+    tgk.show_config(args.config)
+    sys.exit()
+
+if args.show_defaults:
+    tgk.show_config(None)
+    sys.exit()
+
+logger = Logger(debug=args.v)
+
+try:
+    sync = tgk.Sync(args.config, logger=logger)
+    if args.continuous:
+        sync.continuous_sync(rlevels=args.rlevels, download=args.download)
+    else:
+        sync.sync(args.start, end=args.end, rlevels=args.rlevels,
+                  download=args.download)
+    logger.shutdown()
+except Exception as e:
+    err = '{}: {}'.format(type(e).__name__, e)
+    logger.error(err)
+    logger.shutdown()
+
+    if args.v:
+        raise(e)
+    else:
+        print(err)
+        sys.exit()
