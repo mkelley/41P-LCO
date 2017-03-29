@@ -48,29 +48,46 @@ class Science(TGKMaster):
         pat = os.sep.join((self.config['download path'], rlevel_dir,
                            '2017*', '*fz'))
         all_files = sorted(glob(pat))
-        self.logger.info('{} files match requested reduction level.'.format(
+        self.logger.info('{} files match.'.format(
             len(all_files)))
 
         if self.rlevel is None:
-            files = []
-            multi_versions = 0
-            i = 0
-            while i < len(all_files):
-                # remove e??.fits.fz
-                basename = os.path.basename(all_files[i]).rstrip('.fits.fz')[:-4]
-                m = [s for s in all_files if basename in s]
-                # Thanks to sort order and the two-digit pipeline
-                # suffix, the following will always be the highest
-                # level pipeline version:
-                files.append(m[-1])
-                multi_versions += len(m) > 1
-                i += len(m)
+            unique, duplicates = self._find_duplicates(all_files)
+            self.logger.info('{} frames have multiple reduction levels.'.format(len(duplicates)))
 
-            all_files = files
-            self.logger.info('{} frames have multiple reduction levels.'.format(multi_versions))
+            # thanks to sort order and rlevel format, x[-1] will
+            # always be the most current version:
+            all_files = sorted(unique + [x[-1] for x in duplicates])
 
-        self.logger.info('{} files will be processed.'.format(len(all_files)))
+            self.logger.info('{} files will be processed.'.format(len(all_files)))
 
+        self.files = all_files
+
+    def _find_duplicates(self, files):
+        """Find unique and duplicated frames in `files`."""
+        import os
+        
+        i = 0
+        unique = []
+        duplicates = []
+
+        # frame name: remove -e??.fits.fz
+        sorted_files = sorted([(os.path.basename(f)[:-12], f) for f in files])
+        while i < len(sorted_files):
+            # files are sorted by frame name; how many are the same?
+            found = []
+            basename = sorted_files[i][0]
+            while i < len(sorted_files) and basename in sorted_files[i][0]:
+                found.append(sorted_files[i][1])
+                i += 1
+
+            if len(found) == 1:
+                unique.append(found[0])
+            else:
+                duplicates.append(found)
+
+        return unique, duplicates
+        
     def find_new_data(self):
         self.new_data = []
         pass
