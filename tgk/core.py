@@ -88,6 +88,12 @@ class TGKMaster:
         # read configuration file
         self._read_config()
 
+        # verify target directories
+        for k in ['download path', 'science path']:
+            assert os.path.isdir(self.config[k]), (
+                '{} is not a directory or does not exist.'.format(
+                    self.config[k]))
+
         # begin logging
         if logger is None:
             self.logger = logging
