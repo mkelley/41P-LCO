@@ -30,10 +30,11 @@ class Science(TGKMaster):
         else:
             self.logger.info('Processing reduction level {} only.'.format(
                 rlevel))
-        
+
+        self.read_processing_history()
         self.find_data()
-        self.find_new_data()
-        self.process(self.new_data)
+        new_data = self.find_new_data()
+        self.process(new_data)
 
     def find_data(self):
         """Find comet data."""
@@ -51,6 +52,10 @@ class Science(TGKMaster):
         self.logger.info('{} files match.'.format(
             len(all_files)))
 
+        # frame name, rlevel, full path
+        all_files = sorted([(os.path.basename(f)[:-12], f[-11:-8], f)
+                            for f in all_files])
+
         if self.rlevel is None:
             unique, duplicates = self._find_duplicates(all_files)
             self.logger.info('{} frames have multiple reduction levels.'.format(len(duplicates)))
@@ -59,26 +64,31 @@ class Science(TGKMaster):
             # always be the most current version:
             all_files = sorted(unique + [x[-1] for x in duplicates])
 
-            self.logger.info('{} files will be processed.'.format(len(all_files)))
+            self.logger.info('{} files will be considered.'.format(
+                len(all_files)))
 
         self.files = all_files
 
     def _find_duplicates(self, files):
-        """Find unique and duplicated frames in `files`."""
-        import os
+        """Find unique and duplicated frames in `files`.
+
+        `files` must be sorted.
+
+        """
+
+        assert all([files[i][0] <= files[i + 1][0]
+                    for i in range(len(files) - 1)]), 'files must be sorted'
         
         i = 0
         unique = []
         duplicates = []
 
-        # frame name: remove -e??.fits.fz
-        sorted_files = sorted([(os.path.basename(f)[:-12], f) for f in files])
-        while i < len(sorted_files):
+        while i < len(files):
             # files are sorted by frame name; how many are the same?
             found = []
-            basename = sorted_files[i][0]
-            while i < len(sorted_files) and basename in sorted_files[i][0]:
-                found.append(sorted_files[i][1])
+            basename = files[i][0]
+            while i < len(files) and basename in files[i][0]:
+                found.append(files[i][1])
                 i += 1
 
             if len(found) == 1:
@@ -89,8 +99,28 @@ class Science(TGKMaster):
         return unique, duplicates
         
     def find_new_data(self):
-        self.new_data = []
-        pass
+        """Determine which data have not been processed or have an updated rlevel."""
+        new_data = []
+        for f in self.files:
+            if f[0] not in self.processing_history:
+                new_data.append(f)
+
+        self.logger.info('{} frames are new or updated.'.format(len(new_data)))
+        return new_data
 
     def process(self, files):
         pass
+
+    def read_processing_history(self):
+        """Read in processing history file."""
+        import os
+        
+        self.processing_history = {}
+        
+        f = os.sep.join([self.config['science path'], 'processed-data.txt'])
+        if os.path.exists(f):
+            with open(f, 'r') as inf:
+                for line in inf:
+                    frame, rlevel, minions = line.split(';')
+                    minions = minions.split(',')
+                    self.processing_history[frame] = (rlevel, minions)
