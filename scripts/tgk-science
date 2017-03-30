@@ -11,10 +11,15 @@ default_config = os.sep.join([os.path.expanduser('~'), '.config',
                               '41p-lco', 'config.json'])
 
 parser = argparse.ArgumentParser(description='41P/TGK science pipeline.')
-parser.add_argument('--rlevel', type=int, help='Only use this reduction level.  Default is to use the most recent version of each file.')
+parser.add_argument('--rlevel', type=int,
+                    help=('Only use this reduction level.  Default is to'
+                          ' use the most recent version of each file.'))
+parser.add_argument('--reprocess', action='store_true',
+                    help=('Set to process all files, including those'
+                          ' already processed.'))
 parser.add_argument('--config', default=default_config,
-                help=('Use this configuration file.'
-                      ' (default: {})'.format(default_config)))
+                    help=('Use this configuration file.'
+                          ' (default: {})'.format(default_config)))
 parser.add_argument('--show-config', action='store_true',
                     help='Read and print the configuration file.')
 parser.add_argument('--show-defaults', action='store_true',
@@ -35,7 +40,7 @@ logger = Logger(debug=args.v)
 
 try:
     science = tgk.Science(args.config, logger=logger, rlevel=args.rlevel)
-    print('No science yet :(')
+    science.process(all_files=args.reprocess)
     logger.shutdown()
 except Exception as e:
     err = '{}: {}'.format(type(e).__name__, e)

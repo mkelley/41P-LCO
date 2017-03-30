@@ -38,11 +38,6 @@ class Science(TGKMaster):
         self.read_processing_history()
         self.find_data()
 
-        new_data = self.find_new_data()
-        if len(new_data) > 0:
-            self.process(new_data)
-            self.save_observing_log()
-
     def find_data(self):
         """Find comet data."""
         import os
@@ -114,14 +109,42 @@ class Science(TGKMaster):
         self.logger.info('{} frames are new or updated.'.format(len(new_data)))
         return new_data
 
-    def process(self, files):
-        from astropy.io import fits
+    def process(self, all_files=False):
+        """Run the science pipeline on each file.
+
+        Processing history and observing logs are updated.
+
+        Parameters
+        ----------
+        all_files : bool, optional
+          Default is to run on new files.  Set `all_files` to `True`
+          to run on all files.
+
+        """
         
+        from astropy.io import fits
+
+        if all_files:
+            files = self.files
+        else:
+            files = self.find_new_data()
+
+        if len(files) == 0:
+            self.logger.info('No files to process.')
+            return
+
         for frame, rlevel, filename in files:
-            self.logger.info(frame)
+            self.logger.info('  ' + frame)
+
+            minions = []
             with fits.open(filename) as hdu:
                 obs = Observation(hdu['sci'].header)
                 self.observing_log.add_row(obs.log_row())
+
+            self.processing_history[frame] = (rlevel, minions)
+
+        self.save_observing_log()
+        self.save_processing_history()
 
     def read_observing_log(self):
         """Read the observing log."""
@@ -176,6 +199,17 @@ class Science(TGKMaster):
         self.observing_log.write(fn, overwrite=True, delimiter=',',
                                  format='ascii.ecsv')
         self.logger.info('Wrote observing log to {} .'.format(fn))
+
+    def save_processing_history(self):
+        """Save the processing history."""
+        import os
+        
+        fn = os.sep.join([self.config['science path'], 'processed-data.txt'])
+        with open(fn, 'w') as outf:
+            for frame, (rlevel, minions) in self.processing_history.items():
+                outf.write(';'.join([frame, rlevel, ','.join(minions)]) + '\n')
+
+        self.logger.info('Wrote processing history to {} .'.format(fn))
 
 class Observation:
     """Meta data for each LCO frame.
