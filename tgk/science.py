@@ -34,10 +34,14 @@ class Science(TGKMaster):
             self.logger.info('Processing reduction level {} only.'.format(
                 rlevel))
 
+        self.read_observing_log()
         self.read_processing_history()
         self.find_data()
+
         new_data = self.find_new_data()
-        self.process(new_data)
+        if len(new_data) > 0:
+            self.process(new_data)
+            self.save_observing_log()
 
     def find_data(self):
         """Find comet data."""
@@ -117,6 +121,33 @@ class Science(TGKMaster):
             self.logger.info(frame)
             with fits.open(filename) as hdu:
                 obs = Observation(hdu['sci'].header)
+                self.observing_log.add_row(obs.log_row())
+
+    def read_observing_log(self):
+        """Read the observing log."""
+        import os
+        from astropy.io import ascii
+        from astropy.table import Table, vstack
+
+        # changes to this table should be reflected in the Observation
+        # class
+        self.observing_log = Table(
+            names=('frame', 'date', 'time', 'exptime', 'airmass',
+                   'filter', 'rh', 'delta'),
+            dtype=('U64', 'U10', 'U8', float, float, 'U2', float, float))
+        self.observing_log.meta['comments'] = ['Units: UTC, s, au']
+        self.observing_log['exptime'].format = '{:.1f}'
+        self.observing_log['airmass'].format = '{:.3f}'
+        for col in ('rh', 'delta'):
+            self.observing_log[col].format = '{:.4f}'
+
+        fn = os.sep.join([self.config['science path'], 'observing-log.csv'])
+        if os.path.exists(fn):
+            self.observing_log = vstack(
+                (self.observing_log, ascii.read(fn, format='ecsv')))
+            self.logger.info('Read observing log from {} .'.format(fn))
+        else:
+            self.logger.info('Observing log {} does not exist.'.format(fn))
 
     def read_processing_history(self):
         """Read in processing history file."""
@@ -124,13 +155,27 @@ class Science(TGKMaster):
         
         self.processing_history = {}
         
-        f = os.sep.join([self.config['science path'], 'processed-data.txt'])
-        if os.path.exists(f):
-            with open(f, 'r') as inf:
+        fn = os.sep.join([self.config['science path'], 'processed-data.txt'])
+        if os.path.exists(fn):
+            with open(fn, 'r') as inf:
                 for line in inf:
                     frame, rlevel, minions = line.split(';')
                     minions = minions.split(',')
                     self.processing_history[frame] = (rlevel, minions)
+            self.logger.info('Read processing history from {} .'.format(fn))
+        else:
+            self.logger.info('Processing history {} does not exist.'.format(fn))
+
+    def save_observing_log(self):
+        """Save the observing log."""
+        import os
+
+        self.observing_log.sort(['time', 'date'])
+
+        fn = os.sep.join([self.config['science path'], 'observing-log.csv'])
+        self.observing_log.write(fn, overwrite=True, delimiter=',',
+                                 format='ascii.ecsv')
+        self.logger.info('Wrote observing log to {} .'.format(fn))
 
 class Observation:
     """Meta data for each LCO frame.
@@ -148,6 +193,15 @@ class Observation:
       Filter used.
     rlevel : int
       Reduction level.
+
+    time : Time
+      Mid-point of observation.
+    start : Time
+      Start time of observation.
+    stop : Time
+      Stop time of observation.
+    wcs : astropy.wcs.WCS
+      The world coordinate system.
 
     radec_predict : astropy.coordinates.SkyCoord
       Predectied J2000 coordinates (JPL/HORIZONS).
@@ -169,15 +223,6 @@ class Observation:
       Projected comet->Sun vector.
     velocity_position_angle : Angle
       Projected comet velocity vector.
-
-    time : Time
-      Mid-point of observation.
-    start : Time
-      Start time of observation.
-    stop : Time
-      Stop time of observation.
-    wcs : astropy.wcs.WCS
-      The world coordinate system.
 
     gain : Quantity
       Detector gain.
@@ -215,8 +260,6 @@ class Observation:
     solar_elong : Angle
       Solar elongation.
 
-    
-
     """
 
     def __init__(self, header):        
@@ -224,6 +267,7 @@ class Observation:
         self.get_ephemeris()
 
     def get_ephemeris(self):
+        """Get the comet ephemeris from JPL/HORIZONS."""
         import callhorizons
         from . import lco
 
@@ -235,7 +279,16 @@ class Observation:
             raise EphemerisError('Bad return from JPL/HORIZONS, check URL: {}'.format(q.url))
         self._horizons_query = q
 
+    def log_row(self):
+        return (self.frame_name, self.time.iso[:10], self.time.iso[11:19],
+                self.exptime.value, self.airmass, self.filter, self.rh.value,
+                self.delta.value)
+
     ############################################################
+    @property
+    def frame_name(self):
+        return self.header['ORIGNAME'][:-9]
+    
     @property
     def exptime(self):
         return self.header['EXPTIME'] * u.s
@@ -251,6 +304,28 @@ class Observation:
     @property
     def airmass(self):
         return self.header['AIRMASS']
+
+    ############################################################
+    @property
+    def time(self):
+        from astropy.time import Time
+        return Time(self.header['DATE-OBS'], scale='utc')
+
+    @property
+    def start(self):
+        from astropy.time import Time
+        return Time(self.header['DATE-OBS'], scale='utc')
+
+    @property
+    def stop(self):
+        from astropy.time import Time
+        t = self.header['DATE-OBS'][:11] + self.header['UTSTOP']
+        return Time(t, scale='utc')
+
+    @property
+    def wcs(self):
+        from astropy.wcs import WCS
+        return WCS(self.header)
 
     ############################################################
     @property
@@ -310,28 +385,6 @@ class Observation:
     @property
     def instrument(self):
         return self.header['INSTRUME']
-
-    ############################################################
-    @property
-    def time(self):
-        from astropy.time import Time
-        return Time(self.header['DATE-OBS'], scale='utc')
-
-    @property
-    def start(self):
-        from astropy.time import Time
-        return Time(self.header['DATE-OBS'], scale='utc')
-
-    @property
-    def stop(self):
-        from astropy.time import Time
-        t = self.header['DATE-OBS'][:11] + self.header['UTSTOP']
-        return Time(t, scale='utc')
-
-    @property
-    def wcs(self):
-        from astropy.wcs import WCS
-        return WCS(self.header)
     
     ############################################################
     @property
