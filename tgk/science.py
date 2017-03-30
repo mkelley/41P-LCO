@@ -35,6 +35,7 @@ class Science(TGKMaster):
                 rlevel))
 
         self.read_observing_log()
+        self.read_geometry()
         self.read_processing_history()
         self.find_data()
 
@@ -110,7 +111,7 @@ class Science(TGKMaster):
         return new_data
 
     def process(self, all_files=False):
-        """Run the science pipeline on each file.
+        """Run the science pipeline.
 
         Processing history and observing logs are updated.
 
@@ -139,12 +140,52 @@ class Science(TGKMaster):
             minions = []
             with fits.open(filename) as hdu:
                 obs = Observation(hdu['sci'].header)
-                self.observing_log.add_row(obs.log_row())
+
+                if frame in self.geometry['frame']:
+                    i = np.flatnonzero(self.geometry['frame'] == frame)[0]
+                    data = self.geometry[i]
+                else:
+                    data = None
+                geom = Geometry(obs, data=data)
+
+                if frame not in self.observing_log['frame']:
+                    self.observing_log.add_row(obs.log_row())
+
+                if frame not in self.geometry['frame']:
+                    self.geometry.add_row(geom.geometry_row())
 
             self.processing_history[frame] = (rlevel, minions)
 
         self.save_observing_log()
+        self.save_geometry()
         self.save_processing_history()
+
+    def read_geometry(self):
+        """Read the geometry info."""
+        import os
+        from astropy.io import ascii
+        from astropy.table import Table, vstack
+
+        # changes to this table should be reflected in the Geometry class
+        self.geometry = Table(
+            names=('frame', 'date', 'time', 'ra', 'dec', 'mu ra', 'mu dec',
+                   'rh', 'delta', 'phase', 'sun PA', 'velocity PA'),
+            dtype=(['U64', 'U10', 'U8'] + [float] * 9))
+        self.geometry.meta['comments'] = ['Units: UTC, deg, arcsec/s, au, deg']
+        for col in ('ra', 'dec', 'mu ra', 'mu dec'):
+            self.geometry[col].format = '{:.6f}'
+        for col in ('rh', 'delta'):
+            self.geometry[col].format = '{:.4f}'
+        for col in ('phase', 'sun PA', 'velocity PA'):
+            self.geometry[col].format = '{:.2f}'
+
+        fn = os.sep.join([self.config['science path'], 'geometry.csv'])
+        if os.path.exists(fn):
+            self.geometry = vstack(
+                (self.geometry, ascii.read(fn, format='ecsv')))
+            self.logger.info('Read geomtery from {} .'.format(fn))
+        else:
+            self.logger.info('Geometry file does not exist.'.format(fn))
 
     def read_observing_log(self):
         """Read the observing log."""
@@ -155,14 +196,11 @@ class Science(TGKMaster):
         # changes to this table should be reflected in the Observation
         # class
         self.observing_log = Table(
-            names=('frame', 'date', 'time', 'exptime', 'airmass',
-                   'filter', 'rh', 'delta'),
-            dtype=('U64', 'U10', 'U8', float, float, 'U2', float, float))
+            names=('frame', 'date', 'time', 'exptime', 'airmass', 'filter'),
+            dtype=('U64', 'U10', 'U8', float, float, 'U2'))
         self.observing_log.meta['comments'] = ['Units: UTC, s, au']
         self.observing_log['exptime'].format = '{:.1f}'
         self.observing_log['airmass'].format = '{:.3f}'
-        for col in ('rh', 'delta'):
-            self.observing_log[col].format = '{:.4f}'
 
         fn = os.sep.join([self.config['science path'], 'observing-log.csv'])
         if os.path.exists(fn):
@@ -189,6 +227,17 @@ class Science(TGKMaster):
         else:
             self.logger.info('Processing history {} does not exist.'.format(fn))
 
+    def save_geometry(self):
+        """Save the geometry data."""
+        import os
+
+        self.geometry.sort(['time', 'date'])
+
+        fn = os.sep.join([self.config['science path'], 'geometry.csv'])
+        self.geometry.write(fn, overwrite=True, delimiter=',',
+                                 format='ascii.ecsv')
+        self.logger.info('Wrote geometry to {} .'.format(fn))
+
     def save_observing_log(self):
         """Save the observing log."""
         import os
@@ -212,7 +261,7 @@ class Science(TGKMaster):
         self.logger.info('Wrote processing history to {} .'.format(fn))
 
 class Observation:
-    """Meta data for each LCO frame.
+    """Telescope and image meta data for each LCO frame.
 
     Parameters
     ----------
@@ -236,27 +285,6 @@ class Observation:
       Stop time of observation.
     wcs : astropy.wcs.WCS
       The world coordinate system.
-
-    radec_predict : astropy.coordinates.SkyCoord
-      Predectied J2000 coordinates (JPL/HORIZONS).
-    mu : Quantity
-      Proper motion  (JPL/HORIZONS).
-    mu_ra : Qunatity
-      Right ascention rate of change times cos(declination) (JPL/HORIZONS).
-    mu_dec : Quantity
-      Declination rate of change (JPL/HORIZONS).
-
-    rh : Quantity
-      Heliocentric distance (JPL/HORIZONS).
-    delta : Quantity
-      Observer-comet distance (JPL/HORIZONS).
-    phase : Angle
-      Phase angle (JPL/HORIZONS).
-
-    sun_position_angle : Angle
-      Projected comet->Sun vector.
-    velocity_position_angle : Angle
-      Projected comet velocity vector.
 
     gain : Quantity
       Detector gain.
@@ -298,25 +326,11 @@ class Observation:
 
     def __init__(self, header):        
         self.header = header
-        self.get_ephemeris()
-
-    def get_ephemeris(self):
-        """Get the comet ephemeris from JPL/HORIZONS."""
-        import callhorizons
-        from . import lco
-
-        q = callhorizons.query('41P')
-        q.set_discreteepochs([self.time.jd])
-        obs_code = lco.mpc_codes[(self.site[0], self.enclosure[0], self.telescope[0])]
-        n = q.get_ephemerides(obs_code)
-        if n != 1:
-            raise EphemerisError('Bad return from JPL/HORIZONS, check URL: {}'.format(q.url))
-        self._horizons_query = q
 
     def log_row(self):
+        """Format data for adding to an observation log."""
         return (self.frame_name, self.time.iso[:10], self.time.iso[11:19],
-                self.exptime.value, self.airmass, self.filter, self.rh.value,
-                self.delta.value)
+                self.exptime.value, self.airmass, self.filter)
 
     ############################################################
     @property
@@ -360,48 +374,6 @@ class Observation:
     def wcs(self):
         from astropy.wcs import WCS
         return WCS(self.header)
-
-    ############################################################
-    @property
-    def radec_predict(self):
-        from astropy.coordinates import SkyCoord
-        ra = self._horizons_query['RA'][0] * u.deg
-        dec = self._horizons_query['DEC'][0] * u.deg
-        return SkyCoord(ra, dec)
-
-    @property
-    def mu(self):
-        return np.sqrt(self.mu_ra**2 + self.mu_dec**2)
-
-    @property
-    def mu_ra(self):
-        return self._horizons_query['RA_rate'][0] * u.arcsec / u.s
-
-    @property
-    def mu_dec(self):
-        return self._horizons_query['DEC_rate'][0] * u.arcsec / u.s
-
-    ############################################################
-    @property
-    def rh(self):
-        return self._horizons_query['r'][0] * u.au
-
-    @property
-    def delta(self):
-        return self._horizons_query['delta'][0] * u.au
-
-    @property
-    def phase(self):
-        return Angle(self._horizons_query['alpha'][0] * u.deg)
-
-    ############################################################
-    @property
-    def sun_position_angle(self):
-        return Angle((self._horizons_query['sunTargetPA'][0] + 180) * u.deg)
-
-    @property
-    def velocity_position_angle(self):
-        return Angle((self._horizons_query['velocityPA'][0] + 180) * u.deg)
 
     ############################################################
     @property
@@ -473,3 +445,158 @@ class Observation:
     @property
     def solar_elong(self):
         return Angle(self.header['SUNDIST'] * u.deg)
+
+class Geometry:
+    """Comet and comet-observer geometrical circumstances.
+
+    Parameters
+    ----------
+    obs : Observation
+      The observation meta data.
+    data : astropy.table.Row
+      Get parameters from this geometry table row instead of
+      JPL/HORIZONS.
+
+    Attributes
+    ----------
+    radec_predict : astropy.coordinates.SkyCoord
+      Predectied J2000 coordinates.
+    mu : Quantity
+      Proper motion.
+    mu_ra : Qunatity
+      Right ascention rate of change times cos(declination).
+    mu_dec : Quantity
+      Declination rate of change.
+
+    rh : Quantity
+      Heliocentric distance.
+    delta : Quantity
+      Observer-comet distance.
+    phase : Angle
+      Phase angle.
+
+    sun_position_angle : Angle
+      Projected comet->Sun vector.
+    velocity_position_angle : Angle
+      Projected comet velocity vector.
+
+    """
+    def __init__(self, obs, data=None):
+        from astropy.table import Row
+        from astropy.coordinates import SkyCoord
+
+        self.obs = obs
+        
+        if data is None:
+            self.get_ephemeris(obs)
+        else:
+            assert isinstance(data, Row)
+            self._geom = data
+
+    def get_ephemeris(self, obs):
+        """Get the comet ephemeris from JPL/HORIZONS."""
+        from astropy.coordinates import SkyCoord
+        import callhorizons
+        from . import lco
+
+        q = callhorizons.query('41P')
+        q.set_discreteepochs([obs.time.jd])
+        obs_code = lco.mpc_codes[(obs.site[0], obs.enclosure[0], obs.telescope[0])]
+        n = q.get_ephemerides(obs_code)
+        if n != 1:
+            raise EphemerisError('Bad return from JPL/HORIZONS, check URL: {}'.format(q.url))
+
+        self._horizons_query = q
+
+    def geometry_row(self):
+        """Format data for adding to a geometry table."""
+        return (self.obs.frame_name, self.time.iso[:10], self.time.iso[11:19],
+                self.radec_predict.ra.deg, self.radec_predict.dec.deg,
+                self.mu_ra.value, self.mu_dec.value, self.rh.value,
+                self.delta.value, self.phase.value, self.sun_position_angle.value,
+                self.velocity_position_angle.value)
+
+    ############################################################
+    @property
+    def time(self):
+        return self.obs.time
+
+    ############################################################
+    @property
+    def radec_predict(self):
+        from astropy.coordinates import SkyCoord
+        if self._horizons_query is None:
+            return SkyCoord(self._geom['ra'] * u.deg, self._geom['dec'] * u.deg)
+        else:
+            return SkyCoord(self._horizons_query['RA'][0] * u.deg,
+                            self._horizons_query['DEC'][0] * u.deg)
+
+    @property
+    def mu(self):
+        return np.sqrt(self.mu_ra**2 + self.mu_dec**2)
+
+    @property
+    def mu_ra(self):
+        if self._horizons_query is None:
+            return self._geom['mu ra'] * u.arcsec / u.s
+        else:
+            return self._horizons_query['RA_rate'][0] * u.arcsec / u.s
+
+    @property
+    def mu_dec(self):
+        if self._horizons_query is None:
+            return self._geom['mu dec'] * u.arcsec / u.s
+        else:
+            return self._horizons_query['DEC_rate'][0] * u.arcsec / u.s
+
+    ############################################################
+    @property
+    def rh(self):
+        if self._horizons_query is None:
+            return self._geom['rh'] * u.au
+        else:
+            return self._horizons_query['r'][0] * u.au
+
+    @property
+    def delta(self):
+        if self._horizons_query is None:
+            return self._geom['delta'] * u.au
+        else:
+            return self._horizons_query['delta'][0] * u.au
+
+    @property
+    def phase(self):
+        if self._horizons_query is None:
+            return self._geom['phase'] * u.deg
+        else:
+            return Angle(self._horizons_query['alpha'][0] * u.deg)
+
+    ############################################################
+    @property
+    def sun_position_angle(self):
+        if self._horizons_query is None:
+            return self._geom['sun PA'] * u.deg
+        else:
+            return Angle((self._horizons_query['sunTargetPA'][0] + 180) * u.deg)
+
+    @property
+    def velocity_position_angle(self):
+        if self._horizons_query is None:
+            return self._geom['velocity PA'] * u.deg
+        else:
+            return Angle((self._horizons_query['velocityPA'][0] + 180) * u.deg)
+
+class Image:
+    """The image and LCO photometry table.
+
+    Parameters
+    ----------
+    data : ndarray
+      The image data in adu/s.
+    bpm : 
+
+    Attributes
+    ----------
+    header : 
+    """
+    pass
