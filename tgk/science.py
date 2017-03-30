@@ -134,6 +134,7 @@ class Science(TGKMaster):
             self.logger.info('No files to process.')
             return
 
+        # First, minions that operate on individual frames
         for frame, rlevel, filename in files:
             self.logger.info('  ' + frame)
 
@@ -155,6 +156,9 @@ class Science(TGKMaster):
                     self.geometry.add_row(geom.geometry_row())
 
             self.processing_history[frame] = (rlevel, minions)
+
+        # Next, minions that operate on derived data
+        pass
 
         self.save_observing_log()
         self.save_geometry()
@@ -231,7 +235,7 @@ class Science(TGKMaster):
         """Save the geometry data."""
         import os
 
-        self.geometry.sort(['time', 'date'])
+        self.geometry.sort(['date', 'time'])
 
         fn = os.sep.join([self.config['science path'], 'geometry.csv'])
         self.geometry.write(fn, overwrite=True, delimiter=',',
@@ -242,7 +246,7 @@ class Science(TGKMaster):
         """Save the observing log."""
         import os
 
-        self.observing_log.sort(['time', 'date'])
+        self.observing_log.sort(['date', 'time'])
 
         fn = os.sep.join([self.config['science path'], 'observing-log.csv'])
         self.observing_log.write(fn, overwrite=True, delimiter=',',
@@ -577,14 +581,16 @@ class Geometry:
         if self._horizons_query is None:
             return self._geom['sun PA'] * u.deg
         else:
-            return Angle((self._horizons_query['sunTargetPA'][0] + 180) * u.deg)
+            a = (self._horizons_query['sunTargetPA'][0] + 180) % 360.0
+            return Angle(a * u.deg)
 
     @property
     def velocity_position_angle(self):
         if self._horizons_query is None:
             return self._geom['velocity PA'] * u.deg
         else:
-            return Angle((self._horizons_query['velocityPA'][0] + 180) * u.deg)
+            a = (self._horizons_query['velocityPA'][0] + 180) % 360.0
+            return Angle(a * u.deg)
 
 class Image:
     """The image and LCO photometry table.
