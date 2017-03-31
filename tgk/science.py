@@ -104,7 +104,12 @@ class Science(TGKMaster):
         """Determine which data have not been processed or have an updated rlevel."""
         new_data = []
         for f in self.files:
-            if f[0] not in self.processing_history:
+            if f[0] in self.processing_history:
+                last_rlevel = self.processing_history[f[0]][0]
+                print(f, last_rlevel)
+                if last_rlevel < f[1]:
+                    new_data.append(f)
+            else:
                 new_data.append(f)
 
         self.logger.info('{} frames are new or updated.'.format(len(new_data)))
