@@ -191,7 +191,7 @@ class Science:
                     data = None
                 geom = Geometry(obs, data=data)
 
-                #minion_history.extend(minions.frame(self.config, im, obs, geom))
+                minion_history.extend(minions.frame(self.config, im, obs, geom))
                 
                 if frame not in self.observing_log['frame']:
                     self.observing_log.add_row(obs.log_row())
