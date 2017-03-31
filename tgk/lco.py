@@ -20,3 +20,10 @@ mpc_codes = {
     ('tfn', 'aqwa', '0m4a'): 'Z21',
     ('tlv', 'doma', '1m0a'): '097',
 }
+
+# LCO filter to PS1 catalog filter
+filter2PS1 = {
+    'rp': 'r',
+    'w': 'r',
+    'gp': 'g'
+}

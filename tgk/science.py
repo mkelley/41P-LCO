@@ -244,7 +244,7 @@ class Science(TGKMaster):
 
         fn = os.sep.join([self.config['science path'], 'geometry.csv'])
         self.geometry.write(fn, overwrite=True, delimiter=',',
-                                 format='ascii.ecsv')
+                            format='ascii.ecsv')
         self.logger.info('Wrote geometry to {} .'.format(fn))
 
     def save_observing_log(self):
@@ -614,8 +614,8 @@ class Image:
       The science data in adu/s.
     bpm : ndarray
       The bad pixel mask.
-    phot : astropy.table.Table
-      The LCO pipeline photometry table.
+    cat : astropy.table.Table
+      The LCO pipeline photometry catalog.
 
     """
 
@@ -623,7 +623,7 @@ class Image:
         from astropy.table import Table
         self._hdu = hdu
         self._bpm = hdu['bpm'].data.astype(bool)
-        self._phot = Table(hdu['cat'].data)
+        self._cat = Table(hdu['cat'].data)
 
     @property
     def header(self):
@@ -638,5 +638,5 @@ class Image:
         return self._bpm
 
     @property
-    def phot(self):
-        return self._phot
+    def cat(self):
+        return self._cat
