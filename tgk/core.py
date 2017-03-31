@@ -18,7 +18,7 @@ class Logger(logging.Logger):
         import os
         import sys
         
-        logging.Logger.__init__(self, 'TGK Sync')
+        logging.Logger.__init__(self, 'TGK')
         self.loglevel = logging.DEBUG if debug else logging.INFO
         self.setLevel(self.loglevel)
 
@@ -77,7 +77,8 @@ class TGKMaster:
         'password': 'your_password',
         'proposal': 'LCO2016B-109',
         'download path': '/full/path/to/your/download/directory',
-        'science path': '/full/path/to/your/science/directory'
+        'science path': '/full/path/to/your/science/directory',
+        'calibrate match radius': 1,
     }
 
     def __init__(self, config_file, logger=None, log_file=None):
@@ -87,6 +88,12 @@ class TGKMaster:
 
         # read configuration file
         self._read_config()
+
+        # verify target directories
+        for k in ['download path', 'science path']:
+            assert os.path.isdir(self.config[k]), (
+                '{} is not a directory or does not exist.'.format(
+                    self.config[k]))
 
         # begin logging
         if logger is None:
@@ -129,10 +136,10 @@ class TGKMaster:
             with open(self.config_file) as inf:
                 try:
                     self.config = json.load(inf)
-                except JSONDecodeError as e:
+                except json.JSONDecodeError as e:
                     raise ConfigFileError(
                         'Error reading config file: {}\n{}'.format(
-                            config_file, e))
+                            self.config_file, e))
         else:
             raise FileNotFoundError("""Configuration file not found: {}
 Use --show-config for an example.""".format(self.config_file))

@@ -50,7 +50,7 @@ class Sync(TGKMaster):
         """
         import os
         import requests
-        
+
         # first, verify target path and create subdirectories if needed
         d = self.config['download path']
         for tail in ('e{}'.format(meta['RLEVEL']),
