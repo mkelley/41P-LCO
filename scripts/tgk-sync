@@ -26,9 +26,6 @@ parser.add_argument('--rlevels', type=list_of(int), default=[91],
                           ' (default: 91)'))
 parser.add_argument('--continuous', action='store_true',
                     help='Continously check LCO for new data.')
-parser.add_argument('--config', default=default_config,
-                    help=('Use this configuration file.'
-                          ' (default: {})'.format(default_config)))
 parser.add_argument('--show-config', action='store_true',
                     help='Read and print the configuration file.')
 parser.add_argument('--show-defaults', action='store_true',
@@ -39,7 +36,7 @@ parser.add_argument('-v', action='store_true',
 args = parser.parse_args()
 
 if args.show_config:
-    tgk.show_config(args.config)
+    tgk.show_config()
     sys.exit()
 
 if args.show_defaults:

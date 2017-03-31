@@ -17,9 +17,6 @@ parser.add_argument('--rlevel', type=int,
 parser.add_argument('--reprocess', action='store_true',
                     help=('Set to process all files, including those'
                           ' already processed.'))
-parser.add_argument('--config', default=default_config,
-                    help=('Use this configuration file.'
-                          ' (default: {})'.format(default_config)))
 parser.add_argument('--show-config', action='store_true',
                     help='Read and print the configuration file.')
 parser.add_argument('--show-defaults', action='store_true',
@@ -29,7 +26,7 @@ parser.add_argument('-v', action='store_true', help='Increase verbosity.')
 args = parser.parse_args()
 
 if args.show_config:
-    tgk.show_config(args.config)
+    tgk.show_config()
     sys.exit()
 
 if args.show_defaults:
