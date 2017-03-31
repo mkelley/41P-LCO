@@ -152,7 +152,7 @@ class Science(TGKMaster):
                     data = None
                 geom = Geometry(obs, data=data)
 
-                minion_history.append(minions.frame(self.config, im, obs, geom))
+                minion_history.extend(minions.frame(self.config, im, obs, geom))
                 
                 if frame not in self.observing_log['frame']:
                     self.observing_log.add_row(obs.log_row())
@@ -205,9 +205,10 @@ class Science(TGKMaster):
         # changes to this table should be reflected in the Observation
         # class
         self.observing_log = Table(
-            names=('frame', 'date', 'time', 'exptime', 'airmass', 'filter'),
-            dtype=('U64', 'U10', 'U8', float, float, 'U2'))
-        self.observing_log.meta['comments'] = ['Units: UTC, s, au']
+            names=('frame', 'date', 'time', 'binning', 'exptime', 'airmass',
+                   'filter'),
+            dtype=('U64', 'U10', 'U8', 'U3', float, float, 'U2'))
+        self.observing_log.meta['comments'] = ['Units: UTC, pixels, s, au']
         self.observing_log['exptime'].format = '{:.1f}'
         self.observing_log['airmass'].format = '{:.3f}'
 
@@ -267,7 +268,7 @@ class Science(TGKMaster):
             for frame, (rlevel, minions) in self.processing_history.items():
                 outf.write(';'.join([frame, rlevel, ','.join(minions)]) + '\n')
 
-        self.logger.info('Wrote processing history to {} .'.format(fn))
+        self.logger.debug('Wrote processing history to {} .'.format(fn))
 
 class Observation:
     """Telescope and image meta data for each LCO frame.
@@ -299,8 +300,10 @@ class Observation:
       Detector gain.
     nonlinearity : Quantity
       Non-linearity limit.
+    binning : list of int
+      CCD pixel bin factor.
     pixel_scale : Quantity
-      Nominal pixel scale.
+      Nominal pixel scale, binned pixels.
     readnoise : Quantity
       Detector readnoise.
     trim : tuple of slices
@@ -339,6 +342,7 @@ class Observation:
     def log_row(self):
         """Format data for adding to an observation log."""
         return (self.frame_name, self.time.iso[:10], self.time.iso[11:19],
+                '{0[0]}x{0[1]}'.format(self.binning),
                 self.exptime.value, self.airmass, self.filter)
 
     ############################################################
@@ -411,8 +415,12 @@ class Observation:
         return self.header['MAXLIN'] * u.adu
 
     @property
+    def binning(self):
+        return [int(x) for x in self.header['CCDSUM'].split()]
+    
+    @property
     def pixel_scale(self):
-        return self.header['PIXSCALE'] * u.arcsec
+        return self.header['PIXSCALE'] * self.binning[0] * u.arcsec
     
     @property
     def readnoise(self):
