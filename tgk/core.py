@@ -139,7 +139,7 @@ class TGKMaster:
                 except json.JSONDecodeError as e:
                     raise ConfigFileError(
                         'Error reading config file: {}\n{}'.format(
-                            config_file, e))
+                            self.config_file, e))
         else:
             raise FileNotFoundError("""Configuration file not found: {}
 Use --show-config for an example.""".format(self.config_file))
