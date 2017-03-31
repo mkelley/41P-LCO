@@ -191,7 +191,7 @@ class Science:
                     data = None
                 geom = Geometry(obs, data=data)
 
-                minion_history.extend(minions.frame(self.config, im, obs, geom))
+                #minion_history.extend(minions.frame(self.config, im, obs, geom))
                 
                 if frame not in self.observing_log['frame']:
                     self.observing_log.add_row(obs.log_row())
@@ -216,11 +216,20 @@ class Science:
 
         # changes to this table should be reflected in the Geometry class
         self.geometry = Table(
-            names=('frame', 'date', 'time', 'ra', 'dec', 'mu ra', 'mu dec',
-                   'rh', 'delta', 'phase', 'sun PA', 'velocity PA'),
+            names=('frame', 'date', 'time', 'ra predict', 'dec predict',
+                   'mu ra', 'mu dec', 'rh', 'delta', 'phase', 'sun PA',
+                   'velocity PA'),
             dtype=(['U64', 'U10', 'U8'] + [float] * 9))
-        self.geometry.meta['comments'] = ['Units: UTC, deg, arcsec/s, au, deg']
-        for col in ('ra', 'dec', 'mu ra', 'mu dec'):
+        self.geometry.meta['date'] = 'UTC'
+        self.geometry.meta['time'] = 'midpoint, UTC'
+        self.geometry.meta['ra/dec predict'] = 'predicted for telescope by JPL/HORIZONS, deg'
+        self.geometry.meta['mu ra/dec'] = 'proper motion from JPL HORIZONS, arcsec/s'
+        self.geometry.meta['rh'] = 'au'
+        self.geometry.meta['delta'] = 'au'
+        self.geometry.meta['phase'] = 'Sun-comet-observer, deg'
+        self.geometry.meta['sun/velocity PA'] = 'Projected vector position angle, deg E of N'
+        
+        for col in ('ra predict', 'dec predict', 'mu ra', 'mu dec'):
             self.geometry[col].format = '{:.6f}'
         for col in ('rh', 'delta'):
             self.geometry[col].format = '{:.4f}'
@@ -269,11 +278,7 @@ class Science:
         if os.path.exists(fn):
             with open(fn, 'r') as inf:
                 for line in inf:
-                    if len(line.strip()) == 0:
-                        # blank line bug... from Ctrl-c interrupt?
-                        continue
-                    
-                    frame, rlevel, minions = line.split(';')
+                    frame, rlevel, minions = line.strip().split(';')
                     minions = minions.split(',')
                     self.processing_history[frame] = (rlevel, minions)
             self.logger.info('Read processing history from {} .'.format(fn))
@@ -289,7 +294,7 @@ class Science:
         fn = os.sep.join([self.config['science path'], 'geometry.csv'])
         self.geometry.write(fn, overwrite=True, delimiter=',',
                             format='ascii.ecsv')
-        self.logger.info('Wrote geometry to {} .'.format(fn))
+        self.logger.debug('Wrote geometry to {} .'.format(fn))
 
     def save_observing_log(self):
         """Save the observing log."""
@@ -309,7 +314,8 @@ class Science:
         fn = os.sep.join([self.config['science path'], 'processed-data.txt'])
         with open(fn, 'w') as outf:
             for frame, (rlevel, minions) in self.processing_history.items():
-                outf.write(';'.join([frame, rlevel, ','.join(minions)]) + '\n')
+                outf.write(';'.join([frame, rlevel, ','.join(minions)]))
+                outf.write('\n')
 
         self.logger.debug('Wrote processing history to {} .'.format(fn))
 
@@ -556,10 +562,13 @@ class Geometry:
 
     def get_ephemeris(self, obs):
         """Get the comet ephemeris from JPL/HORIZONS."""
+        import logging
         from astropy.coordinates import SkyCoord
         import callhorizons
         from . import lco
 
+        logger = logging.getLogger('tgk.science')
+        logger.info('      Get geometry from HORIZONS.')
         q = callhorizons.query('41P')
         q.set_discreteepochs([obs.time.jd])
         obs_code = lco.mpc_codes[(obs.site[0], obs.enclosure[0], obs.telescope[0])]
@@ -587,7 +596,8 @@ class Geometry:
     def radec_predict(self):
         from astropy.coordinates import SkyCoord
         if self._horizons_query is None:
-            return SkyCoord(self._geom['ra'] * u.deg, self._geom['dec'] * u.deg)
+            return SkyCoord(self._geom['ra predict'] * u.deg,
+                            self._geom['dec predict'] * u.deg)
         else:
             return SkyCoord(self._horizons_query['RA'][0] * u.deg,
                             self._horizons_query['DEC'][0] * u.deg)
