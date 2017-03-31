@@ -7,7 +7,6 @@ import astropy.units as u
 from astropy.time import Time
 import tgk
 from tgk.core import list_of
-import tgk.sync
 
 default_config = os.sep.join([os.path.expanduser('~'), '.config',
                               '41p-lco', 'config.json'])
@@ -42,6 +41,11 @@ if args.show_config:
 if args.show_defaults:
     tgk.show_config(None)
     sys.exit()
+
+# delay import to prevent missing config file crashes
+import tgk.sync
+if args.v:
+    logging.getLogger('tgk.sync').setLevel(logging.DEBUG)
 
 try:
     sync = tgk.sync.Sync()

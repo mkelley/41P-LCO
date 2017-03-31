@@ -54,7 +54,6 @@ def timestamp():
     from datetime import datetime
     return datetime.now().isoformat()
 
-
 ########################################################################
 config_defaults = {
     'username': 'your@email',
@@ -116,7 +115,6 @@ def list_of(type):
     def to_list(s):
         return [type(x) for x in s.split(',')]
     return to_list
-
 
 ########################################################################
 

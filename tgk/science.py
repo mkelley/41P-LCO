@@ -121,6 +121,34 @@ class Science:
         self.logger.info('{} frames are new or updated.'.format(len(new_data)))
         return new_data
 
+    def continuous_process(self):
+        """Continuously run the science pipeline."""
+        
+        import time
+        from astropy.time import Time
+        from .core import timestamp
+        
+        delay = 5 * u.min
+        last_science = Time('2000-01-01')
+        self.logger.info('{} Entering continuous science mode, checking local archive every {}.'.format(timestamp(), delay))
+
+        try:
+            while True:
+                now = Time.now()
+                if (now - last_science) > delay:
+                    self.logger.info(timestamp() + ' Checking local archive.')
+                    self.process()
+                    last_science = Time.now()
+                else:
+                    dt = int((now - last_science).sec)
+                    sleep = int(delay.to(u.s).value) - dt + 2
+                    self.logger.debug(
+                        'Last science: {} s ago.  Sleep {} s.'.format(dt, sleep))
+                    time.sleep(sleep)
+                    self.logger.debug('Awake!')
+        except KeyboardInterrupt:
+            self.logger.info('Caught interrupt signal.  Shutdown.')
+    
     def process(self, all_files=False):
         """Run the science pipeline.
 

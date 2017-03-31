@@ -113,7 +113,6 @@ class Sync:
         """
         
         import time
-        import subprocess
         from astropy.time import Time
         import astropy.units as u
         from .core import timestamp
@@ -130,8 +129,6 @@ class Sync:
                     self.logger.info(timestamp() + ' Sync with LCO archive.')
                     new_files = self.sync(now - window, rlevels=rlevels,
                                           download=download)
-                    if new_files and science:
-                        science_process = subprocess.Popen(['tgk-science'])
                     last_sync = Time.now()
                 else:
                     dt = int((now - last_sync).sec)
