@@ -18,7 +18,7 @@ class Logger(logging.Logger):
         import os
         import sys
         
-        logging.Logger.__init__(self, 'TGK Sync')
+        logging.Logger.__init__(self, 'TGK')
         self.loglevel = logging.DEBUG if debug else logging.INFO
         self.setLevel(self.loglevel)
 

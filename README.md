@@ -12,7 +12,7 @@ Follow up Team: Quan-Zhi Ye, Henry Hsieh, Zhong-Yi Lin, Emmanuel Jehin, Colin Sn
 * Python3
 * [astropy](https://www.astropy.org)
 * [requests](http://docs.python-requests.org/en/master/)
-* [astroquery](https://github.com/astropy/astroquery)
+* [astroquery](https://github.com/astropy/astroquery) >=0.3.5
 * [callhorizons](https://github.com/mommermi/callhorizons)
 
 # Install

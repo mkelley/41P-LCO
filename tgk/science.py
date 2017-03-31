@@ -124,6 +124,7 @@ class Science(TGKMaster):
         """
         
         from astropy.io import fits
+        from . import minions
 
         if all_files:
             files = self.files
@@ -138,10 +139,12 @@ class Science(TGKMaster):
         for frame, rlevel, filename in files:
             self.logger.info('  ' + frame)
 
-            minions = []
+            minion_history = []
             with fits.open(filename) as hdu:
-                obs = Observation(hdu['sci'].header)
+                im = Image(hdu)
+                obs = Observation(im.header)
 
+                # only call JPL/HORIZONS if needed
                 if frame in self.geometry['frame']:
                     i = np.flatnonzero(self.geometry['frame'] == frame)[0]
                     data = self.geometry[i]
@@ -149,13 +152,15 @@ class Science(TGKMaster):
                     data = None
                 geom = Geometry(obs, data=data)
 
+                minion_history.append(minions.frame(self.config, im, obs, geom))
+                
                 if frame not in self.observing_log['frame']:
                     self.observing_log.add_row(obs.log_row())
 
                 if frame not in self.geometry['frame']:
                     self.geometry.add_row(geom.geometry_row())
 
-            self.processing_history[frame] = (rlevel, minions)
+            self.processing_history[frame] = (rlevel, minion_history)
 
         # Next, minions that operate on derived data
         pass
@@ -496,6 +501,7 @@ class Geometry:
         else:
             assert isinstance(data, Row)
             self._geom = data
+            self._horizons_query = None
 
     def get_ephemeris(self, obs):
         """Get the comet ephemeris from JPL/HORIZONS."""
@@ -593,16 +599,44 @@ class Geometry:
             return Angle(a * u.deg)
 
 class Image:
-    """The image and LCO photometry table.
+    """The image data and LCO photometry table.
 
     Parameters
     ----------
-    data : ndarray
-      The image data in adu/s.
-    bpm : 
+    hdu : astropy.io.fits.HDUList
+      The FITS data for the frame in question.
 
     Attributes
     ----------
-    header : 
+    header : astropy.io.fits.Header
+      The science header.
+    data : ndarray
+      The science data in adu/s.
+    bpm : ndarray
+      The bad pixel mask.
+    phot : astropy.table.Table
+      The LCO pipeline photometry table.
+
     """
-    pass
+
+    def __init__(self, hdu):
+        from astropy.table import Table
+        self._hdu = hdu
+        self._bpm = hdu['bpm'].data.astype(bool)
+        self._phot = Table(hdu['cat'].data)
+
+    @property
+    def header(self):
+        return self._hdu['sci'].header
+
+    @property
+    def data(self):
+        return self._hdu['sci'].data
+
+    @property
+    def bpm(self):
+        return self._bpm
+
+    @property
+    def phot(self):
+        return self._phot
