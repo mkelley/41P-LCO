@@ -5,7 +5,7 @@ import sys
 import argparse
 import logging
 import tgk
-from tgk.core import Logger, list_of
+import tgk.science
 
 default_config = os.sep.join([os.path.expanduser('~'), '.config',
                               '41p-lco', 'config.json'])
@@ -36,16 +36,14 @@ if args.show_defaults:
     tgk.show_config(None)
     sys.exit()
 
-logger = Logger(debug=args.v)
-
 try:
-    science = tgk.Science(args.config, logger=logger, rlevel=args.rlevel)
+    science = tgk.science.Science(rlevel=args.rlevel)
     science.process(all_files=args.reprocess)
-    logger.shutdown()
+    tgk.shutdown_logging('tgk.science')
 except Exception as e:
     err = '{}: {}'.format(type(e).__name__, e)
-    logger.error(err)
-    logger.shutdown()
+    logging.getLogger('tgk.science').error(err) 
+    tgk.shutdown_logging('tgk.science')
 
     if args.v:
         raise(e)

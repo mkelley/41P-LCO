@@ -1,18 +1,22 @@
 # Licensed under a MIT style license - see LICENSE
 """science - Comet science with LCO data."""
 
+import os
 import numpy as np
 import astropy.units as u
 from astropy.coordinates import Angle
-from .core import TGKMaster
+from . import core
+from .core import setup_logger, open_log_file, config
 
-class Science(TGKMaster):
+logger = setup_logger('tgk.science')
+log_file = os.sep.join((config['science path'], 'tgk-science.log'))
+open_log_file(log_file, 'tgk.science')
+
+class Science:
     """Comet science with LCO data.
 
     Parameters
     ----------
-    config_file : string
-      The name of a configuration file to read.
     logger : logging.Logger, optional
       Log to this `Logger` instance, otherwise log to the python
       default.
@@ -21,13 +25,16 @@ class Science(TGKMaster):
 
     """
 
-    def __init__(self, config_file, logger=None, rlevel=None):
-        TGKMaster.__init__(self, config_file, logger=logger,
-                           log_file=('science path', 'tgk-science.log'))
+    def __init__(self, rlevel=None):
+        import logging
+        from .core import config
+
+        self.logger = logging.getLogger('tgk.science')
+        self.config = config
 
         assert isinstance(rlevel, (int, type(None))), 'rlevel must be integer or `None`.'
-        
         self.rlevel = rlevel
+
         if rlevel is None:
             self.logger.info('Processing the most recent reduction level.')
         else:

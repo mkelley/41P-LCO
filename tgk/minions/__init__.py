@@ -10,7 +10,7 @@ class Minion:
         import logging
 
         self.config = config
-        self.logger = logging.getLogger('TGK')
+        self.logger = logging.getLogger('tgk.science')
 
         d = self.minion_file('')
         if not os.path.exists(d):

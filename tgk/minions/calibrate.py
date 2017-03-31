@@ -63,7 +63,7 @@ class Calibrate(FrameMinion):
         ps1filter = lco.filter2PS1[self.obs.filter]
         
         if not os.path.exists(fn):
-            self.logger.info('    Retrieving PS1 catalog for {} .'.format(self.obs.frame_name))
+            self.logger.info('    Retrieving PS1 catalog.'.format())
             r = max(self.im.data.shape) * self.obs.pixel_scale * 2 / 3
             c = self.geom.radec_predict
             columns = ','.join([

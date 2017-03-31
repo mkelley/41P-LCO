@@ -3,11 +3,11 @@
 import os
 import sys
 import argparse
-import logging
 import astropy.units as u
 from astropy.time import Time
 import tgk
-from tgk.core import Logger, list_of
+from tgk.core import list_of
+import tgk.sync
 
 default_config = os.sep.join([os.path.expanduser('~'), '.config',
                               '41p-lco', 'config.json'])
@@ -46,20 +46,18 @@ if args.show_defaults:
     tgk.show_config(None)
     sys.exit()
 
-logger = Logger(debug=args.v)
-
 try:
-    sync = tgk.Sync(args.config, logger=logger)
+    sync = tgk.sync.Sync()
     if args.continuous:
         sync.continuous_sync(rlevels=args.rlevels, download=args.download)
     else:
         sync.sync(args.start, end=args.end, rlevels=args.rlevels,
                   download=args.download)
-    logger.shutdown()
+    tgk.shutdown_logging('tgk.sync')
 except Exception as e:
     err = '{}: {}'.format(type(e).__name__, e)
-    logger.error(err)
-    logger.shutdown()
+    logging.getLogger('tgk.sync').error(err) 
+    tgk.shutdown_logging('tgk.sync')
 
     if args.v:
         raise(e)
