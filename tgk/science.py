@@ -106,7 +106,6 @@ class Science(TGKMaster):
         for f in self.files:
             if f[0] in self.processing_history:
                 last_rlevel = self.processing_history[f[0]][0]
-                print(f, last_rlevel)
                 if last_rlevel < f[1]:
                     new_data.append(f)
             else:
@@ -235,6 +234,10 @@ class Science(TGKMaster):
         if os.path.exists(fn):
             with open(fn, 'r') as inf:
                 for line in inf:
+                    if len(line.strip()) == 0:
+                        # blank line bug... from Ctrl-c interrupt?
+                        continue
+                    
                     frame, rlevel, minions = line.split(';')
                     minions = minions.split(',')
                     self.processing_history[frame] = (rlevel, minions)
@@ -262,7 +265,7 @@ class Science(TGKMaster):
         fn = os.sep.join([self.config['science path'], 'observing-log.csv'])
         self.observing_log.write(fn, overwrite=True, delimiter=',',
                                  format='ascii.ecsv')
-        self.logger.info('Wrote observing log to {} .'.format(fn))
+        self.logger.debug('Wrote observing log to {} .'.format(fn))
 
     def save_processing_history(self):
         """Save the processing history."""
