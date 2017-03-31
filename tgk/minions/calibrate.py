@@ -3,6 +3,9 @@
 
 from . import FrameMinion
 
+class CalibrationFailure(Exception):
+    pass
+
 class Calibrate(FrameMinion):
     """Calibrate with PanSTARRS
 
@@ -24,12 +27,18 @@ class Calibrate(FrameMinion):
 
     _table_names = ['frame', 'filter', 'N cat', 'min(sep)', 'max(sep)',
                     'scmean(sep)', 'scmedian(sep)', 'scstdev(sep)',
-                    'N match', 'min(dm)', 'max(dm)', 'scmean(dm)',
+                    'N match', 'mean(FWHM)', 'mean(background)',
+                    'min(dm)', 'max(dm)', 'scmean(dm)',
                     'scmedian(dm)', 'scstdev(dm)']
-    _table_dtype = ['U64', 'U2'] + ([int] + [float] * 5) * 2
+    _table_dtype = (['U64', 'U2'] + [int] + [float] * 5
+                    + [int] + [float] * 7)
     _table_format = ([None, None, None] + ['{:.2f}'] * 5
-                     + [None] + ['{:.3f}'] * 5)
-    _table_comments = ['Units: arcsec, magnitude']
+                     + [None, '{:.2f}', '{:.2f}'] + ['{:.3f}'] * 5)
+    _table_sort = ['frame']
+    _table_meta = {
+        'units': 'arcsec, ADU/s, magnitude',
+        'comments': 'scmean/scmedian/scstdev are sigma-clipped mean/median/standard deviation'
+    }
 
     @property
     def name(self):
@@ -38,6 +47,7 @@ class Calibrate(FrameMinion):
     def run(self):
         import os
         import logging
+        import warnings
         import requests
         import numpy as np
         import astropy.units as u
@@ -104,7 +114,11 @@ class Calibrate(FrameMinion):
                 outf.write(q.text)
 
         self.logger.info('    Reading PS1 catalog from {} .'.format(fn))
+
+        # suppress VOTable version warning
+        warnings.simplefilter('ignore', category=UserWarning)
         cat = votable.parse_single_table(fn)
+        warnings.resetwarnings()
 
         # match catalogs
         ps1 = SkyCoord(ra=cat.array['ramean'],
@@ -132,12 +146,18 @@ class Calibrate(FrameMinion):
         ps1magfield = '{}meanapmag'.format(ps1filter)
         i *= cat.array[ps1magfield][match] > -999
         
+        # Remove bogus photometry
+        i *= (self.im.cat['FLUX'] * self.im.cat['FLUXERR']) > 0
+        
         # measure magnitude offset, use ADU/s
         m = -2.5 * np.log10(self.im.cat['FLUX'][i] / self.obs.exptime.value)
         merr = 1.0857 * self.im.cat['FLUXERR'][i] / self.im.cat['FLUX'][i]
         dm = cat.array[ps1magfield][match][i] - m
         dm_err = np.sqrt(merr**2 + cat.array[ps1magfield + 'err'][match][i]**2)
 
+        if any(~np.isfinite(dm * dm_err)):
+            raise CalibrationFailure('Not all values are finite.')
+        
         # cal stats
         minmax = min(dm), max(dm)
         mms = stats.sigma_clipped_stats(dm)
@@ -145,6 +165,8 @@ class Calibrate(FrameMinion):
         self.logger.debug('''      - delta-mag range: {minmax[0]:.3f} - {minmax[1]:.3f}
       - Sigma-clipped mean/median/stddev = {mms[0]:.3f}/{mms[1]:.3f}/{mms[2]:.3f} arcsec.'''.format(minmax=minmax, mms=mms))
         log.append(i.sum())
+        log.append(np.mean(self.im.cat['FWHM'][i]) * self.obs.pixel_scale)
+        log.append(np.mean(self.im.cat['BACKGROUND'][i]))
         log.extend(minmax)
         log.extend(mms)
 
