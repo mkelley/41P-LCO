@@ -111,14 +111,20 @@ def frame(config, im, obs, geom):
       Names of the executed minions.
 
     """
-    
-    from .calibrate import Calibrate
 
+    import logging
+    from .calibrate import Calibrate, CalibrationFailure
+
+    logger = logging.getLogger('tgk.science')
     history = []
-
     for minion in (Calibrate,):
-        m = minion(config, im, obs, geom)
-        m.run()
-        history.append(m.name)
+        try:
+            m = minion(config, im, obs, geom)
+            m.run()
+            history.append(m.name)
+        except CalibrationFailure as e:
+            err = '{}: {}'.format(type(e).__name__, e)
+            logger.error(err)
+            return history
 
     return history

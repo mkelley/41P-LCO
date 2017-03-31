@@ -45,7 +45,7 @@ try:
     tgk.shutdown_logging('tgk.science')
 except Exception as e:
     err = '{}: {}'.format(type(e).__name__, e)
-    logging.getLogger('tgk.science').error(err) 
+    logging.getLogger('tgk.science').error(err)
     tgk.shutdown_logging('tgk.science')
 
     if args.v:
