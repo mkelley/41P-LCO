@@ -5,7 +5,6 @@ import sys
 import argparse
 import logging
 import tgk
-from tgk.core import Logger, list_of
 
 default_config = os.sep.join([os.path.expanduser('~'), '.config',
                               '41p-lco', 'config.json'])
@@ -17,9 +16,8 @@ parser.add_argument('--rlevel', type=int,
 parser.add_argument('--reprocess', action='store_true',
                     help=('Set to process all files, including those'
                           ' already processed.'))
-parser.add_argument('--config', default=default_config,
-                    help=('Use this configuration file.'
-                          ' (default: {})'.format(default_config)))
+parser.add_argument('--continuous', action='store_true',
+                    help='Continuously check local archive for new data.')
 parser.add_argument('--show-config', action='store_true',
                     help='Read and print the configuration file.')
 parser.add_argument('--show-defaults', action='store_true',
@@ -29,23 +27,26 @@ parser.add_argument('-v', action='store_true', help='Increase verbosity.')
 args = parser.parse_args()
 
 if args.show_config:
-    tgk.show_config(args.config)
+    tgk.show_config()
     sys.exit()
 
 if args.show_defaults:
     tgk.show_config(None)
     sys.exit()
 
-logger = Logger(debug=args.v)
+# delay import to prevent missing config file crashes
+import tgk.science
+if args.v:
+    logging.getLogger('tgk.sync').setLevel(logging.DEBUG)
 
 try:
-    science = tgk.Science(args.config, logger=logger, rlevel=args.rlevel)
+    science = tgk.science.Science(rlevel=args.rlevel)
     science.process(all_files=args.reprocess)
-    logger.shutdown()
+    tgk.shutdown_logging('tgk.science')
 except Exception as e:
     err = '{}: {}'.format(type(e).__name__, e)
-    logger.error(err)
-    logger.shutdown()
+    logging.getLogger('tgk.science').error(err) 
+    tgk.shutdown_logging('tgk.science')
 
     if args.v:
         raise(e)

@@ -5,10 +5,15 @@ Thanks to Nestor Espinoza's lcogtDD for an example on syncing with LCO.
 
 """
 
-from .core import TGKMaster
+import os
 from .core import ArchiveFileAlreadyExists, AuthorizationError
+from .core import setup_logger, open_log_file, config
 
-class Sync(TGKMaster):
+logger = setup_logger('tgk.sync')
+log_file = os.sep.join((config['download path'], 'tgk-sync.log'))
+open_log_file(log_file, 'tgk.sync')
+
+class Sync:
     """Sync observations with LCO.
 
     Parameters
@@ -21,16 +26,18 @@ class Sync(TGKMaster):
 
     """
 
-    def __init__(self, config_file, logger=None):
+    def __init__(self):
+        import logging
         import astropy.units as u
         from astropy.time import Time
+        from .core import config
+
+        self.logger = logging.getLogger('tgk.sync')
+        self.config = config
 
         self.request_delay = 1 * u.s
         self.last_request = Time.now() - self.request_delay
         self.last_download = None
-
-        TGKMaster.__init__(self, config_file, logger=logger,
-                           log_file=('download path', 'tgk-sync.log'))
 
         # get http authorization token from LCO
         self._get_auth_token()
@@ -91,7 +98,7 @@ class Sync(TGKMaster):
         self.auth = {'Authorization': 'Token ' + token}
         self.logger.info('Obtained authoriation token.')
 
-    def continuous_sync(self, rlevels=[91], download=True):
+    def continuous_sync(self, rlevels=[91], download=True, science=True):
         """Continuously check for new data.
 
         Parameters
@@ -100,26 +107,28 @@ class Sync(TGKMaster):
           Reduction levels to check.
         download : bool, optional
           Download flag.
+        science : bool, optional
+          Science-after-download flag.
 
         """
         
+        import time
         from astropy.time import Time
         import astropy.units as u
-        import time
+        from .core import timestamp
 
         window = 1 * u.day  # search window
         cadence = 2 * u.hr  # search cadence
         last_sync = Time('2000-01-01')
-        self.logger.timestamp()
-        self.logger.info('Entering continuous sync mode, checking LCO archive every {} with a {}-wide search window.'.format(cadence, window))
+        self.logger.info('{} Entering continuous sync mode, checking LCO archive every {} with a {}-wide search window.'.format(timestamp(), cadence, window))
 
         try:
             while True:
                 now = Time.now()
                 if (now - last_sync) > cadence:
-                    self.logger.timestamp()
-                    self.logger.info('Sync with LCO archive.')
-                    self.sync(now - window, rlevels=rlevels, download=download)
+                    self.logger.info(timestamp() + ' Sync with LCO archive.')
+                    new_files = self.sync(now - window, rlevels=rlevels,
+                                          download=download)
                     last_sync = Time.now()
                 else:
                     dt = int((now - last_sync).sec)
@@ -186,10 +195,17 @@ class Sync(TGKMaster):
         download : bool, optional
           Flag to download data.
 
+        Return
+        ------
+        new_files : bool
+          `True` if new files were downloaded.
+
         """
         import os
         from astropy.time import Time
+        from .core import timestamp
 
+        new_files = False
         for rlevel in rlevels:
             query = {
                 'PROPID': self.config['proposal'],
@@ -201,11 +217,9 @@ class Sync(TGKMaster):
             if end is not None:
                 query['end'] = end.iso[:10]
 
-            self.logger.timestamp()
             data = self.request('https://archive-api.lco.global/frames/',
                                 query=query)
-            self.logger.info('Found {} frames with reduction level {}.'.format(
-                data['count'], rlevel))
+            self.logger.info('{} Found {} frames with reduction level {}.'.format(timestamp(), data['count'], rlevel))
 
             dl_count = 0
             skip_count = 0
@@ -225,9 +239,9 @@ class Sync(TGKMaster):
                                 skip_count += 1
                                 pass
                         if len(downloaded) > 0:
-                            self.logger.log_table(tab[downloaded])
+                            log_table(tab[downloaded], 'tgk.sync')
                     else:
-                        self.logger.log_table(tab)
+                        self.logger.log_table(tab, 'tgk.sync')
 
                 if data['next'] is not None:
                     # get next payload set
@@ -235,6 +249,9 @@ class Sync(TGKMaster):
                 else:
                     break  # end while loop
 
-            self.logger.timestamp()
-            self.logger.info('Downloaded {} files, {} skipped.'.format(
-                dl_count, skip_count))
+            self.logger.info('{} Downloaded {} files, {} skipped.'.format(
+                timestamp(), dl_count, skip_count))
+
+            new_files += dl_count > 0
+
+        return new_files
