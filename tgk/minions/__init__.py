@@ -48,6 +48,7 @@ class Minion:
         """
 
         import os
+        from collections import OrderedDict
         from astropy.io import ascii
         from astropy.table import Table, vstack
 
@@ -58,13 +59,16 @@ class Minion:
             tab = Table(names=self._table_names, dtype=self._table_dtype)
             for col, cformat in zip(self._table_names, self._table_format):
                 tab[col].format = cformat
-            tab.meta['comments'] = self._table_comments
+            tab.meta = self._table_meta
+            assert isinstance(self._table_sort, (type(None), list, tuple))
         except NameError as e:
-            raise MinionError('Cannot create minion table; missing column and/or comment definitions.')
+            raise MinionError('Cannot create minion table; missing definitions.')
 
         fn = self.minion_file(basename)
         if os.path.exists(fn):
-            tab = vstack((tab, ascii.read(fn, format='ecsv')))
+            _tab = ascii.read(fn, format='ecsv')
+            _tab.meta = OrderedDict()  # no need to duplicate meta data
+            tab = vstack((tab, _tab))
 
         # enforce unique fields
         if unique is not None:
@@ -74,6 +78,8 @@ class Minion:
                 tab.remove_row(np.flatnonzero(j)[0])
 
         tab.add_row(row)
+        if self._table_sort is not None:
+            tab.sort(self._table_sort)
         tab.write(fn, overwrite=True, delimiter=',', format='ascii.ecsv')
 
 class FrameMinion(Minion):
