@@ -64,7 +64,7 @@ class Minion:
 
         fn = self.minion_file(basename)
         if os.path.exists(fn):
-            tab_log = vstack((tab, ascii.read(fn, format='ecsv')))
+            tab = vstack((tab, ascii.read(fn, format='ecsv')))
 
         # enforce unique fields
         if unique is not None:

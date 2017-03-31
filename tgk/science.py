@@ -156,18 +156,18 @@ class Science(TGKMaster):
                 
                 if frame not in self.observing_log['frame']:
                     self.observing_log.add_row(obs.log_row())
+                    self.save_observing_log()
 
                 if frame not in self.geometry['frame']:
                     self.geometry.add_row(geom.geometry_row())
+                    self.save_geometry()
 
             self.processing_history[frame] = (rlevel, minion_history)
+            self.save_processing_history()
 
         # Next, minions that operate on derived data
         pass
 
-        self.save_observing_log()
-        self.save_geometry()
-        self.save_processing_history()
 
     def read_geometry(self):
         """Read the geometry info."""

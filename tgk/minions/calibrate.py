@@ -96,7 +96,7 @@ class Calibrate(FrameMinion):
             params = dict(RA=c.ra.deg, DEC=c.dec.deg, SR=r.to(u.deg).value,
                           max_records=3000, ordercolumn1='ndetections',
                           descending1='on', selectedColumnsCsv=columns)
-            
+
             q = requests.get('https://archive.stsci.edu/panstarrs/search.php',
                              params=params)
 
@@ -150,4 +150,4 @@ class Calibrate(FrameMinion):
 
         # save to calibration log
         self.append_to_table(log)
-        stop
+
