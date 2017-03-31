@@ -25,14 +25,14 @@ class Calibrate(FrameMinion):
 
     """
 
-    _table_names = ['frame', 'filter', 'N cat', 'min(sep)', 'max(sep)',
-                    'scmean(sep)', 'scmedian(sep)', 'scstdev(sep)',
-                    'N match', 'mean(FWHM)', 'mean(background)',
-                    'min(dm)', 'max(dm)', 'scmean(dm)',
-                    'scmedian(dm)', 'scstdev(dm)']
-    _table_dtype = (['U64', 'U2'] + [int] + [float] * 5
+    _table_names = ['frame', 'filter', 'airmass', 'N cat', 'min(sep)',
+                    'max(sep)', 'scmean(sep)', 'scmedian(sep)',
+                    'scstdev(sep)', 'N match', 'mean(FWHM)',
+                    'mean(background)', 'min(dm)', 'max(dm)',
+                    'scmean(dm)', 'scmedian(dm)', 'scstdev(dm)']
+    _table_dtype = (['U64', 'U2', float, int] + [float] * 5
                     + [int] + [float] * 7)
-    _table_format = ([None, None, None] + ['{:.2f}'] * 5
+    _table_format = ([None, None, '{:.3f}', None] + ['{:.2f}'] * 5
                      + [None, '{:.2f}', '{:.2f}'] + ['{:.3f}'] * 5)
     _table_sort = ['frame']
     _table_meta = {
@@ -56,7 +56,9 @@ class Calibrate(FrameMinion):
         from astropy.io import votable
         from .. import lco
 
-        log = [self.obs.frame_name, self.obs.filter]  # calibration log
+        # calibration log
+        log = [self.obs.frame_name, self.obs.filter, self.obs.airmass]
+        
         fn = self.minion_file('{}.xml'.format(self.obs.frame_name))
         ps1filter = lco.filter2PS1[self.obs.filter]
         
@@ -116,7 +118,7 @@ class Calibrate(FrameMinion):
         self.logger.info('    Reading PS1 catalog from {} .'.format(fn))
 
         # suppress VOTable version warning
-        warnings.simplefilter('ignore', category=UserWarning)
+        warnings.simplefilter('ignore', category=votable.VOWarning)
         cat = votable.parse_single_table(fn)
         warnings.resetwarnings()
 
@@ -156,7 +158,8 @@ class Calibrate(FrameMinion):
         dm_err = np.sqrt(merr**2 + cat.array[ps1magfield + 'err'][match][i]**2)
 
         if any(~np.isfinite(dm * dm_err)):
-            raise CalibrationFailure('Not all values are finite.')
+            raise CalibrationFailure('Not all values are finite: {}.'.format(
+                self.obs.frame_name))
         
         # cal stats
         minmax = min(dm), max(dm)
