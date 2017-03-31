@@ -14,6 +14,7 @@ Follow up Team: Quan-Zhi Ye, Henry Hsieh, Zhong-Yi Lin, Emmanuel Jehin, Colin Sn
 * [requests](http://docs.python-requests.org/en/master/)
 * [astroquery](https://github.com/astropy/astroquery) >=0.3.5
 * [callhorizons](https://github.com/mommermi/callhorizons)
+* [matplotlib](https://www.matplotlib.org)
 
 # Install
 The recommended installation is through a virtualenv installation.  See the wiki [for details](https://github.com/mkelley/41P-LCO/wiki/Pipeline-installation).
