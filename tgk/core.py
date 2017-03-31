@@ -77,7 +77,8 @@ class TGKMaster:
         'password': 'your_password',
         'proposal': 'LCO2016B-109',
         'download path': '/full/path/to/your/download/directory',
-        'science path': '/full/path/to/your/science/directory'
+        'science path': '/full/path/to/your/science/directory',
+        'calibrate match radius': 1,
     }
 
     def __init__(self, config_file, logger=None, log_file=None):
@@ -135,7 +136,7 @@ class TGKMaster:
             with open(self.config_file) as inf:
                 try:
                     self.config = json.load(inf)
-                except JSONDecodeError as e:
+                except json.JSONDecodeError as e:
                     raise ConfigFileError(
                         'Error reading config file: {}\n{}'.format(
                             config_file, e))
