@@ -17,6 +17,11 @@ class Logger(logging.Logger):
     def __init__(self, debug=False):
         import os
         import sys
+
+        if not debug:
+            import warnings
+            from astropy.utils.exceptions import AstropyWarning
+            warnings.simplefilter('ignore', category=AstropyWarning)
         
         logging.Logger.__init__(self, 'TGK')
         self.loglevel = logging.DEBUG if debug else logging.INFO
