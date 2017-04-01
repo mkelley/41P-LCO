@@ -2,10 +2,10 @@
 """calibrate - Derive zero-point magnitude with PanSTARRS."""
 
 from collections import OrderedDict
-from . import FrameMinion
+from . import FrameMinion, MinionError
 from ..science import ScienceTable
 
-class CalibrationFailure(Exception):
+class CalibrationFailure(MinionError):
     pass
 
 class Calibrate(FrameMinion):
@@ -27,6 +27,9 @@ class Calibrate(FrameMinion):
 
     """
 
+    def __init__(self, *args):
+        FrameMinion.__init__(self, *args, minion_directory=True)
+    
     @property
     def name(self):
         return 'calibrate'
@@ -147,9 +150,7 @@ class Calibrate(FrameMinion):
         log.extend(mms)
 
         # save to calibration log
-        fn = os.sep.join([self.name, 'calibrate.csv'])
-        cal_table = CalibrationTable(fn, verbose=False)
-        cal_table.update(log)
+        CalibrationTable().update(log)
 
 class CalibrationTable(ScienceTable):
     _table_title = 'calibration'
@@ -172,6 +173,9 @@ class CalibrationTable(ScienceTable):
     _table_meta['dm'] = 'Difference in magnitudes between matched objects.'
     _table_meta['comments'] = 'scmean/scmedian/scstdev are sigma-clipped mean/median/standard deviation; LCO catalog magnitudes are based on flux in ADU/s.'
     _table_sort = ['frame']
+
+    def __init__(self, verbose=False):
+        ScienceTable.__init__(self, 'calibrate.csv', verbose=verbose)
 
     def update(self, row):
         """Add row to table."""

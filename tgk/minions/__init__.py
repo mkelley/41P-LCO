@@ -5,18 +5,20 @@ class MinionError(Exception):
     pass
 
 class Minion:
-    def __init__(self, config):
+    def __init__(self, config, minion_directory=False):
         import os
         import logging
 
         self.config = config
         self.logger = logging.getLogger('tgk.science')
 
-        d = self.minion_file('')
-        if not os.path.exists(d):
-            os.mkdir(d)
+        self.minion_directory = minion_directory
+        if minion_directory:
+            d = self.minion_file('')
+            if not os.path.exists(d):
+                os.mkdir(d)
 
-        assert os.path.isdir(d), 'Expected {} to be a directory.'.format(d)
+            assert os.path.isdir(d), 'Expected {} to be a directory.'.format(d)
 
     def run(self):
         pass
@@ -29,17 +31,20 @@ class Minion:
     def minion_file(self, basename):
         """Get the name of a minion file."""
         import os
-        fn = os.sep.join([self.config['science path'], self.name, basename])
+        if self.minion_directory:
+            fn = os.sep.join([self.config['science path'], self.name, basename])
+        else:
+            fn = os.sep.join([self.config['science path'], basename])
         return fn
 
 class FrameMinion(Minion):
-    def __init__(self, config, im, obs, geom):
+    def __init__(self, config, im, obs, geom, minion_directory=False):
         self.config = config
         self.im = im
         self.obs = obs
         self.geom = geom
         
-        Minion.__init__(self, config)
+        Minion.__init__(self, config, minion_directory=minion_directory)
 
 def frame(config, im, obs, geom):
     """Run minions on an individual frame.
@@ -63,17 +68,19 @@ def frame(config, im, obs, geom):
     """
 
     import logging
-    from .calibrate import Calibrate, CalibrationFailure
+    from .calibrate import Calibrate
+    from .background import Background
+    from .cometphot import CometPhot
     from ..core import timestamp
 
     logger = logging.getLogger('tgk.science')
     history = []
-    for minion in (Calibrate,):
+    for minion in (Calibrate, Background, CometPhot):
         try:
             m = minion(config, im, obs, geom)
             m.run()
             history.append(m.name)
-        except CalibrationFailure as e:
+        except MinionError as e:
             err = '   {} {}: {}'.format(timestamp()[:-7], type(e).__name__, e)
             logger.error(err)
             break

@@ -246,7 +246,7 @@ class Observation:
       Nominal pixel scale, binned pixels.
     readnoise : Quantity
       Detector readnoise.
-    trim : tuple of slices
+    trimsec : tuple of slices
       Section of useful data.
 
     site : tuple of strings
@@ -368,10 +368,14 @@ class Observation:
 
     @property
     def trimsec(self):
-        x, y = self.header['TRIMSEC'][1:-1].split(',')
-        x1, x2 = x.split(':')
-        y1, y2 = y.split(':')
-        return np.s_[(y1 - 1):y2, (x1 - 1):x2]
+        if self.site[0] == 'coj':
+            # TRIMSEC is bad for coj, define our own
+            return np.s_[31:4069, 1:4094]
+        else:
+            x, y = self.header['TRIMSEC'][1:-1].split(',')
+            x1, x2 = [int(z) for z in x.split(':')]
+            y1, y2 = [int(z) for z in y.split(':')]
+            return np.s_[(y1 - 1):y2, (x1 - 1):x2]
     
     ############################################################
     @property
@@ -653,6 +657,14 @@ class ScienceTable:
         self.tab.write(self.filename, overwrite=True, delimiter=delimiter,
                        format='ascii.ecsv')
 
+    def _get_unique_row(self, column, value):
+        """Get the row that matches value in column, or else `None`."""
+        if value in self.tab[column]:
+            i = np.flatnonzero(self.tab[column] == value)[0]
+            return self.tab[i]
+        else:
+            return None
+        
     def _update_unique_column(self, unique_column, row):
         """Update table with new data.
 
@@ -690,11 +702,7 @@ class ProcessingHistory(ScienceTable):
         ScienceTable.__init__(self, 'processing-history.csv')
 
     def get_frame(self, frame):
-        if frame in self.tab['frame']:
-            i = np.flatnonzero(self.tab['frame'] == frame)[0]
-            return self.tab[i]
-        else:
-            return None
+        return self._get_unique_row('frame', frame)
 
     def update(self, row):
         """Add row to table."""
@@ -762,54 +770,6 @@ class GeometryTable(ScienceTable):
 
     def __init__(self):
         ScienceTable.__init__(self, 'geometry.csv')
-
-    def update(self, row):
-        """Add row to table."""
-        self._update_unique_column('frame', row)
-
-class CometPhotometry(ScienceTable):
-    """All comet photometry.
-
-    Parameters
-    ----------
-    filename : string
-      The comet photometry table to read and update.
-
-    """
-    _table_title = 'comet photometry'
-    _table_columns = [
-        'frame', 'filter', 'x', 'y', 'bg', 'bgsig', 'bgarea',
-        'f1', 'ferr1', 'f2', 'ferr2', 'f3', 'ferr3',
-        'm1', 'merr1', 'm2', 'merr2', 'm3', 'merr3',
-    ]
-    _table_dtypes = ['U64', 'U2'] + [float] * 29
-    _table_meta = OrderedDict()
-    _table_meta['filter'] = 'LCO filter name.'
-    _table_meta['x/y'] = 'Aperture center, 0-based index, pixels.'
-    _table_meta['bg'] = 'Background estimate, ADU/s/pixel.'
-    _table_meta['bgsig'] = 'Background standard deviation per pixel.'
-    _table_meta['bgarea'] = 'Area used for background estimate.'
-    _table_meta['fi, ferri'] = 'Background subtracted flux and error estimates for 1, 2, and 3" radius apertures, ADU/s.'
-    _table_meta['mi, merri'] = 'Calibrated magnitudes for each aperture, AB mag.'
-    _table_formats = {
-        'x': '{:.2f}',
-        'y': '{:.2f}',
-        'bg': '{:.2f}',
-        'bgsig': '{:.2f}',
-        'f1': '{:.5g}',
-        'f2': '{:.5g}',
-        'f3': '{:.5g}',
-        'ferr1': '{:.5g}',
-        'ferr2': '{:.5g}',
-        'ferr3': '{:.5g}',
-        'm1': '{:.3f}',
-        'm2': '{:.3f}',
-        'm3': '{:.3f}',
-        'merr1': '{:.3f}',
-        'merr2': '{:.3f}',
-        'merr3': '{:.3f}',
-    }
-    _table_sort = 'frame'
 
     def update(self, row):
         """Add row to table."""
