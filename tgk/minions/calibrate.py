@@ -69,6 +69,7 @@ class Calibrate(FrameMinion):
         if not os.path.exists(fn):
             self.logger.info('    Retrieving PS1 catalog.'.format())
             r = max(self.im.data.shape) * self.obs.pixel_scale * 2 / 3
+            r = min(r, 30 * u.arcmin)  # STScI has a 30 arcmin max radius
             c = self.geom.radec_predict
             columns = ','.join([
                 'objname',
