@@ -180,3 +180,6 @@ class CalibrationTable(ScienceTable):
     def update(self, row):
         """Add row to table."""
         self._update_unique_column('frame', row)
+    
+    def get_frame(self, frame):
+        return self._get_unique_row('frame', frame)
