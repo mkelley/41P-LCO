@@ -3,6 +3,7 @@
 import os
 import sys
 import argparse
+import logging
 import astropy.units as u
 from astropy.time import Time
 import tgk

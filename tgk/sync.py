@@ -203,7 +203,7 @@ class Sync:
         """
         import os
         from astropy.time import Time
-        from .core import timestamp
+        from .core import timestamp, log_table
 
         new_files = False
         for rlevel in rlevels:
@@ -241,7 +241,7 @@ class Sync:
                         if len(downloaded) > 0:
                             log_table(tab[downloaded], 'tgk.sync')
                     else:
-                        self.logger.log_table(tab, 'tgk.sync')
+                        log_table(tab, 'tgk.sync')
 
                 if data['next'] is not None:
                     # get next payload set
