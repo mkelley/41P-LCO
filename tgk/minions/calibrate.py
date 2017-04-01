@@ -65,6 +65,10 @@ class Calibrate(FrameMinion):
         
         fn = self.minion_file('{}.xml'.format(self.obs.frame_name))
         ps1filter = lco.filter2PS1[self.obs.filter]
+
+        cols = self.im.cat.colnames
+        if 'RA' not in cols or 'DEC' not in cols:
+            raise CalibrationFailure('Missing RA and DEC in source table.')
         
         if not os.path.exists(fn):
             self.logger.info('    Retrieving PS1 catalog.'.format())
