@@ -61,7 +61,7 @@ class PlotCometPhot(TableMinion):
         ax.errorbar(rh[i], comet.tab['m2'][i], comet.tab['merr2'][i],
                     color='b', label='2" radius', **opts)
         ax.errorbar(rh[i], comet.tab['m3'][i], comet.tab['merr3'][i],
-                    color='b', label='3" radius', **opts)
+                    color='r', label='3" radius', **opts)
 
         plt.setp(ax, xlabel=r'$r_h$ (au)', ylabel=r"$r'$ (mag)",
                  ylim=ax.get_ylim()[::-1])
