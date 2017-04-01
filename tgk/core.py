@@ -110,6 +110,35 @@ Use --show-config for an example.""".format(config_file))
     return config
 
 ########################################################################
+def get_filename(frame, rlevel=None):
+    """Get the full path to a single frame.
+
+    Parameters
+    ----------
+    frame : string
+      The frame name (i.e., everything up to -e*.fits.fz).
+    rlevel : string, optional
+      The reduction level desired, nor `None` to return the highest
+      level.
+
+    Returns
+    -------
+    filename : string
+
+    """
+
+    from glob import glob
+
+    if rlevel is None:
+        pat = os.sep.join([config['download path'], 'e*', '*', frame + '*'])
+    else:
+        pat = os.sep.join([config['download path'], 'e{}'.format(rlevel),
+                           '*', frame + '*'])
+
+    # for multiple matches, use sort order to determine highest rlevel
+    return sorted(glob(pat))[-1]
+
+########################################################################
 # for command line parsing
 def list_of(type):
     def to_list(s):

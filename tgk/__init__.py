@@ -2,5 +2,4 @@
 """tgk --- 41P/Tuttle-Giacobini-Kresak outburst detection with LCO."""
 
 from . import core
-from .core import show_config
-from .core import shutdown_logging
+from .core import show_config, shutdown_logging, get_filename
