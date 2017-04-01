@@ -114,6 +114,7 @@ def frame(config, im, obs, geom):
 
     import logging
     from .calibrate import Calibrate, CalibrationFailure
+    from ..core import timestamp
 
     logger = logging.getLogger('tgk.science')
     history = []
@@ -123,7 +124,7 @@ def frame(config, im, obs, geom):
             m.run()
             history.append(m.name)
         except CalibrationFailure as e:
-            err = '{}: {}'.format(type(e).__name__, e)
+            err = '   {} {}: {}'.format(timestamp()[:-7], type(e).__name__, e)
             logger.error(err)
             return history
 

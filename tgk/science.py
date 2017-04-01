@@ -175,8 +175,10 @@ class Science:
             return
 
         # First, minions that operate on individual frames
+        n_remaining = len(files)
         for frame, rlevel, filename in files:
-            self.logger.info('  ' + frame)
+            n_remaining -= 1
+            self.logger.info('  {} [{} remaining]'.format(frame, n_remaining))
 
             minion_history = []
             with fits.open(filename) as hdu:

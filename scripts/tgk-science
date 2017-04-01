@@ -41,7 +41,10 @@ if args.v:
 
 try:
     science = tgk.science.Science(rlevel=args.rlevel)
-    science.process(all_files=args.reprocess)
+    if args.continuous:
+        science.continuous_process()
+    else:
+        science.process(all_files=args.reprocess)
     tgk.shutdown_logging('tgk.science')
 except Exception as e:
     err = '{}: {}'.format(type(e).__name__, e)
