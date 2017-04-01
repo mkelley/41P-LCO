@@ -189,23 +189,20 @@ class Science:
             with fits.open(filename) as hdu:
                 im = Image(hdu)
                 obs = Observation(im.header)
-
-                # only call JPL/HORIZONS if needed
-                if frame in self.geometry_table.tab['frame']:
-                    i = np.flatnonzero(
-                        self.geometry_table.tab['frame'] == frame)[0]
-                    data = self.geometry_table.tab[i]
-                else:
-                    data = None
-                geom = Geometry(obs, data=data)
-
-                minion_history.extend(minions.frame(self.config, im, obs, geom))
-                
                 if frame not in self.observation_log.tab['frame']:
                     self.observation_log.update(obs.log_row())
 
+                # only call JPL/HORIZONS if needed
+                if frame in self.geometry_table.tab['frame']:
+                    data = self.geometry_table.get_frame(frame)
+                else:
+                    data = None
+                geom = Geometry(obs, data=data)
+                
                 if frame not in self.geometry_table.tab['frame']:
                     self.geometry_table.update(geom.geometry_row())
+
+                minion_history.extend(minions.frame(self.config, im, obs, geom))
 
             row = (frame, rlevel, ';'.join(minion_history))
             self.processing_history.update(row)
@@ -659,8 +656,7 @@ class ScienceTable:
         """Write table to file."""
         if self._table_sort is not None:
             self.tab.sort(self._table_sort)
-        self.tab.write(self.filename, overwrite=True, delimiter=delimiter,
-                       format='ascii.ecsv')
+        self.tab.write(self.filename, delimiter=delimiter, format='ascii.ecsv')
 
     def _get_unique_row(self, column, value):
         """Get the row that matches value in column, or else `None`."""

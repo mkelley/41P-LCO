@@ -50,6 +50,7 @@ class CometPhot(FrameMinion):
                        unit='deg')
         c = self.geom.radec_predict
         match, sep = match_coordinates_sky(c, lco)[:2]
+        match = int(match)  # avoid len of unsized object bug
         logger.info('      Matched comet from HORIZONS coordinates to LCO object {:.2f} away.'.format(sep[0].to(u.arcsec)))
         
         comet = self.im.cat[match]
