@@ -147,7 +147,7 @@ class Calibrate(FrameMinion):
         log.extend(mms)
 
         # save to calibration log
-        fn = os.sep.join([self.name, 'calibration.csv'])
+        fn = os.sep.join([self.name, 'calibrate.csv'])
         cal_table = CalibrationTable(fn, verbose=False)
         cal_table.update(log)
 

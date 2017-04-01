@@ -44,7 +44,7 @@ class Science:
 
         self.observation_log = ObservationLog()
         self.geometry_table = GeometryTable()
-        self.read_processing_history()
+        self.processing_history = ProcessingHistory()
         self.find_data()
 
     def find_data(self):
@@ -111,12 +111,13 @@ class Science:
         """Determine which data have not been processed or have an updated rlevel."""
         new_data = []
         for f in self.files:
-            if f[0] in self.processing_history:
-                last_rlevel = self.processing_history[f[0]][0]
+            row = self.processing_history.get_frame(f[0])
+            if row is None:
+                new_data.append(f)
+            else:
+                last_rlevel = row[1]
                 if last_rlevel < f[1]:
                     new_data.append(f)
-            else:
-                new_data.append(f)
 
         self.logger.info('{} frames are new or updated.'.format(len(new_data)))
         return new_data
@@ -202,38 +203,13 @@ class Science:
                 if frame not in self.geometry_table.tab['frame']:
                     self.geometry_table.update(geom.geometry_row())
 
-            self.processing_history[frame] = (rlevel, minion_history)
-            self.save_processing_history()
+            row = (frame, rlevel, ';'.join(minion_history))
+            self.processing_history.update(row)
 
         # Next, minions that operate on derived data
         pass
 
-
-    def read_processing_history(self):
-        """Read in processing history file."""
-        self.processing_history = {}
-        
-        fn = os.sep.join([self.config['science path'], 'processed-data.txt'])
-        if os.path.exists(fn):
-            with open(fn, 'r') as inf:
-                for line in inf:
-                    frame, rlevel, minions = line.strip().split(';')
-                    minions = minions.split(',')
-                    self.processing_history[frame] = (rlevel, minions)
-            self.logger.info('Read processing history from {} .'.format(fn))
-        else:
-            self.logger.info('Processing history {} does not exist.'.format(fn))
-
-    def save_processing_history(self):
-        """Save the processing history."""
-        fn = os.sep.join([self.config['science path'], 'processed-data.txt'])
-        with open(fn, 'w') as outf:
-            for frame, (rlevel, minions) in self.processing_history.items():
-                outf.write(';'.join([frame, rlevel, ','.join(minions)]))
-                outf.write('\n')
-
-        self.logger.debug('Wrote processing history to {} .'.format(fn))
-
+########################################################################
 class Observation:
     """Telescope and image meta data for each LCO frame.
 
@@ -670,11 +646,12 @@ class ScienceTable:
                 logger.info('Initialized empty {} table.'.format(
                     self._table_title))
 
-    def write(self):
+    def write(self, delimiter=' '):
         """Write table to file."""
         if self._table_sort is not None:
             self.tab.sort(self._table_sort)
-        self.tab.write(self.filename, overwrite=True, format='ascii.ecsv')
+        self.tab.write(self.filename, overwrite=True, delimiter=delimiter,
+                       format='ascii.ecsv')
 
     def _update_unique_column(self, unique_column, row):
         """Update table with new data.
@@ -698,6 +675,34 @@ class ScienceTable:
         """Add row to table."""
         self.tab.add_row(row)
         self.write()
+
+class ProcessingHistory(ScienceTable):
+    """Processing history table."""
+
+    _table_title = 'observation log'
+    _table_columns = ('frame', 'rlevel', 'minions')
+    _table_dtypes = ('U64', 'U3', 'U256')
+    _table_meta = OrderedDict()
+    _table_formats = {}
+    _table_sort = ['frame']
+
+    def __init__(self):
+        ScienceTable.__init__(self, 'processing-history.csv')
+
+    def get_frame(self, frame):
+        if frame in self.tab['frame']:
+            i = np.flatnonzero(self.tab['frame'] == frame)[0]
+            return self.tab[i]
+        else:
+            return None
+
+    def update(self, row):
+        """Add row to table."""
+        self._update_unique_column('frame', row)
+
+    def write(self):
+        """Write table to file."""
+        ScienceTable.write(self)
 
 class ObservationLog(ScienceTable):
     """Observation log table."""
