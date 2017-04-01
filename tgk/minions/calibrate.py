@@ -1,7 +1,9 @@
 # Licensed under a MIT style license - see LICENSE
 """calibrate - Derive zero-point magnitude with PanSTARRS."""
 
+from collections import OrderedDict
 from . import FrameMinion
+from ..science import ScienceTable
 
 class CalibrationFailure(Exception):
     pass
@@ -24,25 +26,6 @@ class Calibrate(FrameMinion):
       Comet geometric circumstances.
 
     """
-
-    _table_names = ['frame', 'filter', 'airmass', 'N cat', 'N match',
-                    'mean(FWHM)', 'mean(background)', 'min(sep)', 'max(sep)',
-                    'scmean(sep)', 'scmedian(sep)', 'scstdev(sep)', 'min(dm)',
-                    'max(dm)', 'scmean(dm)', 'scmedian(dm)', 'scstdev(dm)']
-    _table_dtype = (['U64', 'U2', float, int, int] + [float] * 12)
-    _table_format = ([None, None, '{:.3f}', None, None] + ['{:.2f}'] * 7
-                     + ['{:.3f}'] * 5)
-    _table_sort = ['frame']
-    _table_meta = {
-        'filter': 'LCO filter name',
-        'N cat': 'Number of objects in LCO photometry catalog.',
-        'N match': 'Number of objects matched with PS1 catalog, after distance and non-zero flux tests.',
-        'mean(FWHM)': 'Mean LCO FWHM of matched objects.',
-        'mean(background)': 'Mean LCO photometry catalog background for matched objects, ADU/s.',
-        'sep': 'Spherical distance between matched objects, arcsec.',
-        'dm': 'Difference in magnitudes between matched objects.',
-        'comments': 'scmean/scmedian/scstdev are sigma-clipped mean/median/standard deviation; LCO catalog magnitudes are based on flux in ADU/s.',
-    }
 
     @property
     def name(self):
@@ -75,43 +58,18 @@ class Calibrate(FrameMinion):
             r = max(self.im.data.shape) * self.obs.pixel_scale * 2 / 3
             r = min(r, 30 * u.arcmin)  # STScI has a 30 arcmin max radius
             c = self.geom.radec_predict
-            columns = ','.join([
-                'objname',
-                'objid',
-                'ramean',
-                'decmean',
-                'rameanerr',
-                'decmeanerr',
-                'ndetections',
-                'randomid',
-                'projectionid',
-                'skycellid',
-                'objinfoflag',
-                'qualityflag',
-                'rastack',
-                'decstack',
-                'rastackerr',
-                'decstackerr',
-                'epochmean',
-                'nstackdetections',
-                'ng',
-                'nr',
-                'gqfperfect',
-                'gmeanpsfmag',
-                'gmeanpsfmagerr',
-                'gmeankronmag',
-                'gmeankronmagerr',
-                'gmeanapmag',
-                'gmeanapmagerr',
-                'gflags',
-                'rqfperfect',
-                'rmeanpsfmag',
-                'rmeanpsfmagerr',
-                'rmeankronmag',
-                'rmeankronmagerr',
-                'rmeanapmag',
-                'rmeanapmagerr',
-                'rflags',
+            columns = ','.join([    
+                'objname', 'objid', 'ramean',
+                'decmean', 'rameanerr', 'decmeanerr', 'ndetections',
+                'randomid', 'projectionid', 'skycellid',
+                'objinfoflag', 'qualityflag', 'rastack', 'decstack',
+                'rastackerr', 'decstackerr', 'epochmean',
+                'nstackdetections', 'ng', 'nr', 'gqfperfect',
+                'gmeanpsfmag', 'gmeanpsfmagerr', 'gmeankronmag',
+                'gmeankronmagerr', 'gmeanapmag', 'gmeanapmagerr',
+                'gflags', 'rqfperfect', 'rmeanpsfmag',
+                'rmeanpsfmagerr', 'rmeankronmag', 'rmeankronmagerr',
+                'rmeanapmag', 'rmeanapmagerr', 'rflags'
             ])
 
             params = dict(RA=c.ra.deg, DEC=c.dec.deg, SR=r.to(u.deg).value,
@@ -189,4 +147,32 @@ class Calibrate(FrameMinion):
         log.extend(mms)
 
         # save to calibration log
-        self.append_to_table(log)
+        fn = os.sep.join([self.name, 'calibration.csv'])
+        cal_table = CalibrationTable(fn, verbose=False)
+        cal_table.update(log)
+
+class CalibrationTable(ScienceTable):
+    _table_title = 'calibration'
+    _table_columns = [
+        'frame', 'filter', 'airmass', 'N cat', 'N match',
+        'mean(FWHM)', 'mean(background)', 'min(sep)', 'max(sep)',
+        'scmean(sep)', 'scmedian(sep)', 'scstdev(sep)', 'min(dm)',
+        'max(dm)', 'scmean(dm)', 'scmedian(dm)', 'scstdev(dm)'
+    ]
+    _table_dtypes = ['U64', 'U2', float, int, int] + [float] * 12
+    _table_formats = ([None, None, '{:.3f}', '{:4d}', '{:04d}']
+                      + ['{:.2f}'] * 7 + ['{:.3f}'] * 5)
+    _table_meta = OrderedDict()
+    _table_meta['filter'] = 'LCO filter name'
+    _table_meta['N cat'] = 'Number of objects in LCO photometry catalog.'
+    _table_meta['N match'] = 'Number of objects matched with PS1 catalog, after distance and non-zero flux tests.'
+    _table_meta['mean(FWHM)'] = 'Mean LCO FWHM of matched objects.'
+    _table_meta['mean(background)'] = 'Mean LCO photometry catalog background for matched objects, ADU/s.'
+    _table_meta['sep'] = 'Spherical distance between matched objects, arcsec.'
+    _table_meta['dm'] = 'Difference in magnitudes between matched objects.'
+    _table_meta['comments'] = 'scmean/scmedian/scstdev are sigma-clipped mean/median/standard deviation; LCO catalog magnitudes are based on flux in ADU/s.'
+    _table_sort = ['frame']
+
+    def update(self, row):
+        """Add row to table."""
+        self._update_unique_column('frame', row)

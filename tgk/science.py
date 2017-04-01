@@ -2,6 +2,7 @@
 """science - Comet science with LCO data."""
 
 import os
+from collections import OrderedDict
 import numpy as np
 import astropy.units as u
 from astropy.coordinates import Angle
@@ -41,14 +42,13 @@ class Science:
             self.logger.info('Processing reduction level {} only.'.format(
                 rlevel))
 
-        self.read_observing_log()
-        self.read_geometry()
+        self.observation_log = ObservationLog()
+        self.geometry_table = GeometryTable()
         self.read_processing_history()
         self.find_data()
 
     def find_data(self):
         """Find comet data."""
-        import os
         from glob import glob
 
         if self.rlevel is None:
@@ -152,7 +152,7 @@ class Science:
     def process(self, all_files=False):
         """Run the science pipeline.
 
-        Processing history and observing logs are updated.
+        Processing history and observation logs are updated.
 
         Parameters
         ----------
@@ -186,22 +186,21 @@ class Science:
                 obs = Observation(im.header)
 
                 # only call JPL/HORIZONS if needed
-                if frame in self.geometry['frame']:
-                    i = np.flatnonzero(self.geometry['frame'] == frame)[0]
-                    data = self.geometry[i]
+                if frame in self.geometry_table.tab['frame']:
+                    i = np.flatnonzero(
+                        self.geometry_table.tab['frame'] == frame)[0]
+                    data = self.geometry_table.tab[i]
                 else:
                     data = None
                 geom = Geometry(obs, data=data)
 
                 minion_history.extend(minions.frame(self.config, im, obs, geom))
                 
-                if frame not in self.observing_log['frame']:
-                    self.observing_log.add_row(obs.log_row())
-                    self.save_observing_log()
+                if frame not in self.observation_log.tab['frame']:
+                    self.observation_log.update(obs.log_row())
 
-                if frame not in self.geometry['frame']:
-                    self.geometry.add_row(geom.geometry_row())
-                    self.save_geometry()
+                if frame not in self.geometry_table.tab['frame']:
+                    self.geometry_table.update(geom.geometry_row())
 
             self.processing_history[frame] = (rlevel, minion_history)
             self.save_processing_history()
@@ -210,70 +209,8 @@ class Science:
         pass
 
 
-    def read_geometry(self):
-        """Read the geometry info."""
-        import os
-        from astropy.io import ascii
-        from astropy.table import Table, vstack
-
-        # changes to this table should be reflected in the Geometry class
-        self.geometry = Table(
-            names=('frame', 'date', 'time', 'ra predict', 'dec predict',
-                   'mu ra', 'mu dec', 'rh', 'delta', 'phase', 'sun PA',
-                   'velocity PA'),
-            dtype=(['U64', 'U10', 'U8'] + [float] * 9))
-        self.geometry.meta['date'] = 'UTC'
-        self.geometry.meta['time'] = 'midpoint, UTC'
-        self.geometry.meta['ra/dec predict'] = 'predicted for telescope by JPL/HORIZONS, deg'
-        self.geometry.meta['mu ra/dec'] = 'proper motion from JPL HORIZONS, arcsec/s'
-        self.geometry.meta['rh'] = 'au'
-        self.geometry.meta['delta'] = 'au'
-        self.geometry.meta['phase'] = 'Sun-comet-observer, deg'
-        self.geometry.meta['sun/velocity PA'] = 'Projected vector position angle, deg E of N'
-        
-        for col in ('ra predict', 'dec predict', 'mu ra', 'mu dec'):
-            self.geometry[col].format = '{:.6f}'
-        for col in ('rh', 'delta'):
-            self.geometry[col].format = '{:.4f}'
-        for col in ('phase', 'sun PA', 'velocity PA'):
-            self.geometry[col].format = '{:.2f}'
-
-        fn = os.sep.join([self.config['science path'], 'geometry.csv'])
-        if os.path.exists(fn):
-            self.geometry = vstack(
-                (self.geometry, ascii.read(fn, format='ecsv')))
-            self.logger.info('Read geomtery from {} .'.format(fn))
-        else:
-            self.logger.info('Geometry file does not exist.'.format(fn))
-
-    def read_observing_log(self):
-        """Read the observing log."""
-        import os
-        from astropy.io import ascii
-        from astropy.table import Table, vstack
-
-        # changes to this table should be reflected in the Observation
-        # class
-        self.observing_log = Table(
-            names=('frame', 'date', 'time', 'binning', 'exptime', 'airmass',
-                   'filter'),
-            dtype=('U64', 'U10', 'U8', 'U3', float, float, 'U2'))
-        self.observing_log.meta['comments'] = ['Units: UTC, pixels, s, au']
-        self.observing_log['exptime'].format = '{:.1f}'
-        self.observing_log['airmass'].format = '{:.3f}'
-
-        fn = os.sep.join([self.config['science path'], 'observing-log.csv'])
-        if os.path.exists(fn):
-            self.observing_log = vstack(
-                (self.observing_log, ascii.read(fn, format='ecsv')))
-            self.logger.info('Read observing log from {} .'.format(fn))
-        else:
-            self.logger.info('Observing log {} does not exist.'.format(fn))
-
     def read_processing_history(self):
         """Read in processing history file."""
-        import os
-        
         self.processing_history = {}
         
         fn = os.sep.join([self.config['science path'], 'processed-data.txt'])
@@ -287,32 +224,8 @@ class Science:
         else:
             self.logger.info('Processing history {} does not exist.'.format(fn))
 
-    def save_geometry(self):
-        """Save the geometry data."""
-        import os
-
-        self.geometry.sort(['date', 'time'])
-
-        fn = os.sep.join([self.config['science path'], 'geometry.csv'])
-        self.geometry.write(fn, overwrite=True, delimiter=',',
-                            format='ascii.ecsv')
-        self.logger.debug('Wrote geometry to {} .'.format(fn))
-
-    def save_observing_log(self):
-        """Save the observing log."""
-        import os
-
-        self.observing_log.sort(['date', 'time'])
-
-        fn = os.sep.join([self.config['science path'], 'observing-log.csv'])
-        self.observing_log.write(fn, overwrite=True, delimiter=',',
-                                 format='ascii.ecsv')
-        self.logger.debug('Wrote observing log to {} .'.format(fn))
-
     def save_processing_history(self):
         """Save the processing history."""
-        import os
-        
         fn = os.sep.join([self.config['science path'], 'processed-data.txt'])
         with open(fn, 'w') as outf:
             for frame, (rlevel, minions) in self.processing_history.items():
@@ -703,3 +616,196 @@ class Image:
     @property
     def cat(self):
         return self._cat
+
+class ScienceTable:
+    """Science table convenience class.
+
+    Parameters
+    ----------
+    filename : string
+      The file to read/write table data to/from.  The science path is
+      automatically prepended.
+    verbose : bool, optional
+      Log verbosity.
+
+    Requires: _table_title, _table_columns, _table_dtypes,
+      _table_meta, _table_formats, _table_sort
+
+    """
+    def __init__(self, filename, verbose=True):
+        self.verbose = verbose
+        self.filename = os.sep.join([config['science path'], filename])
+        self.read()
+
+    def read(self):
+        """Read in the table."""
+        
+        import logging
+        from astropy.io import ascii
+        from astropy.table import Table, vstack
+
+        self.tab = Table(names=self._table_columns,
+                         dtype=self._table_dtypes)
+        self.tab.meta = self._table_meta
+
+        assert isinstance(self._table_formats, (dict, tuple, list))
+        if isinstance(self._table_formats, (tuple, list)):
+            for i, col in enumerate(self.tab.colnames):
+                self.tab[col].format = self._table_formats[i]
+        else:
+            for col, cformat in self._table_formats.items():
+                self.tab[col].format = cformat
+
+        logger = logging.getLogger('tgk.science')
+        if os.path.exists(self.filename):
+            tab = ascii.read(self.filename, format='ecsv')
+            tab.meta = OrderedDict()  # no need to duplicate meta data
+            self.tab = vstack((self.tab, tab))
+
+            if self.verbose:
+                logger.info('Read {} table from {}.'.format(
+                    self._table_title, self.filename))
+        else:
+            if self.verbose:
+                logger.info('Initialized empty {} table.'.format(
+                    self._table_title))
+
+    def write(self):
+        """Write table to file."""
+        if self._table_sort is not None:
+            self.tab.sort(self._table_sort)
+        self.tab.write(self.filename, overwrite=True, format='ascii.ecsv')
+
+    def _update_unique_column(self, unique_column, row):
+        """Update table with new data.
+
+        If `unique_column` is already present in the table, it is
+        replaced.
+
+        """
+
+        assert np.unique(self.tab[unique_column]).size == len(self.tab), '{} entries are not unique in {} table.'.format(unique_column, self._table_title)
+
+        i = self.tab.index_column(unique_column)
+        j = self.tab[unique_column] == row[i]
+        if any(j):
+            self.tab.remove_row(np.flatnonzero(j)[0])
+
+        self.tab.add_row(row)
+        self.write()
+
+    def update(self, row):
+        """Add row to table."""
+        self.tab.add_row(row)
+        self.write()
+
+class ObservationLog(ScienceTable):
+    """Observation log table."""
+
+    _table_title = 'observation log'
+    _table_columns = (
+        'frame', 'date', 'time', 'binning', 'exptime', 'airmass', 'filter'
+    )
+    _table_dtypes = ('U64', 'U10', 'U8', 'U3', float, float, 'U2')
+    _table_meta = OrderedDict()
+    _table_meta['date/time'] = 'UTC.'
+    _table_meta['binning'] = 'Original CCD pixels bin factor.'
+    _table_meta['exptime'] = 'Frame exposure time, s.'
+    _table_meta['filter'] = 'LCO filter name.'
+    _table_formats = {
+        'exptime': '{:.1f}',
+        'airmass': '{:.3f}',
+    }
+    _table_sort = ['date', 'time']
+
+    def __init__(self):
+        ScienceTable.__init__(self, 'observation-log.csv')
+
+    def update(self, row):
+        """Add row to table."""
+        self._update_unique_column('frame', row)
+
+class GeometryTable(ScienceTable):
+    """Geometry table."""
+    # changes to this table should be reflected in the Geometry class
+    _table_title = 'geometry'
+    _table_columns = ('frame', 'date', 'time', 'ra predict', 'dec predict',
+                      'mu ra', 'mu dec', 'rh', 'delta', 'phase', 'sun PA',
+                      'velocity PA')
+    _table_dtypes = ['U64', 'U10', 'U8'] + [float] * 9
+    _table_meta = OrderedDict()
+    _table_meta['date'] = 'UTC'
+    _table_meta['time'] = 'midpoint, UTC'
+    _table_meta['ra/dec predict'] = 'predicted for telescope by JPL/HORIZONS, deg'
+    _table_meta['mu ra/dec'] = 'proper motion from JPL HORIZONS, arcsec/s'
+    _table_meta['rh'] = 'au'
+    _table_meta['delta'] = 'au'
+    _table_meta['phase'] = 'Sun-comet-observer, deg'
+    _table_meta['sun/velocity PA'] = 'Projected vector position angle, deg E of N'
+    _table_formats = {
+        'ra predict': '{:.6f}',
+        'dec predict': '{:.6f}',
+        'mu ra': '{:.6f}',
+        'mu dec': '{:.6f}',
+        'rh': '{:.4f}',
+        'delta': '{:.4f}',
+        'phase': '{:.2f}',
+        'sun PA': '{:.2f}',
+        'velocity PA': '{:.2f}',
+    }
+    _table_sort = ['date', 'time']
+
+    def __init__(self):
+        ScienceTable.__init__(self, 'geometry.csv')
+
+    def update(self, row):
+        """Add row to table."""
+        self._update_unique_column('frame', row)
+
+class CometPhotometry(ScienceTable):
+    """All comet photometry.
+
+    Parameters
+    ----------
+    filename : string
+      The comet photometry table to read and update.
+
+    """
+    _table_title = 'comet photometry'
+    _table_columns = [
+        'frame', 'filter', 'x', 'y', 'bg', 'bgsig', 'bgarea',
+        'f1', 'ferr1', 'f2', 'ferr2', 'f3', 'ferr3',
+        'm1', 'merr1', 'm2', 'merr2', 'm3', 'merr3',
+    ]
+    _table_dtypes = ['U64', 'U2'] + [float] * 29
+    _table_meta = OrderedDict()
+    _table_meta['filter'] = 'LCO filter name.'
+    _table_meta['x/y'] = 'Aperture center, 0-based index, pixels.'
+    _table_meta['bg'] = 'Background estimate, ADU/s/pixel.'
+    _table_meta['bgsig'] = 'Background standard deviation per pixel.'
+    _table_meta['bgarea'] = 'Area used for background estimate.'
+    _table_meta['fi, ferri'] = 'Background subtracted flux and error estimates for 1, 2, and 3" radius apertures, ADU/s.'
+    _table_meta['mi, merri'] = 'Calibrated magnitudes for each aperture, AB mag.'
+    _table_formats = {
+        'x': '{:.2f}',
+        'y': '{:.2f}',
+        'bg': '{:.2f}',
+        'bgsig': '{:.2f}',
+        'f1': '{:.5g}',
+        'f2': '{:.5g}',
+        'f3': '{:.5g}',
+        'ferr1': '{:.5g}',
+        'ferr2': '{:.5g}',
+        'ferr3': '{:.5g}',
+        'm1': '{:.3f}',
+        'm2': '{:.3f}',
+        'm3': '{:.3f}',
+        'merr1': '{:.3f}',
+        'merr2': '{:.3f}',
+        'merr3': '{:.3f}',
+    }
+    _table_sort = 'frame'
+
+    def update(self, row):
+        """Add row to table."""
+        self._update_unique_column('frame', row)
