@@ -76,6 +76,6 @@ def frame(config, im, obs, geom):
         except CalibrationFailure as e:
             err = '   {} {}: {}'.format(timestamp()[:-7], type(e).__name__, e)
             logger.error(err)
-            return history
+            break
 
     return history
