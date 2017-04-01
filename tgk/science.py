@@ -150,31 +150,35 @@ class Science:
         except KeyboardInterrupt:
             self.logger.info('Caught interrupt signal.  Shutdown.')
     
-    def process(self, all_files=False):
+    def process(self, reprocess=None):
         """Run the science pipeline.
 
         Processing history and observation logs are updated.
 
         Parameters
         ----------
-        all_files : bool, optional
-          Default is to run on new files.  Set `all_files` to `True`
-          to run on all files.
+        reprocess : bool, optional
+          Default is to run only if there are new files.  Set to 'all'
+          to rerun on all frames and tables, or 'tables' to rerun
+          tables, even if no new frames are found.
 
         """
         
         from astropy.io import fits
         from . import minions
 
-        if all_files:
+        assert reprocess in [None, 'all', 'tables']
+        if reprocess == 'all':
             files = self.files
         else:
             files = self.find_new_data()
 
         if len(files) == 0:
             self.logger.info('No files to process.')
-            return
-
+            if reprocess is None:
+                # we're done
+                return
+    
         # First, minions that operate on individual frames
         n_remaining = len(files)
         for frame, rlevel, filename in files:
@@ -206,8 +210,9 @@ class Science:
             row = (frame, rlevel, ';'.join(minion_history))
             self.processing_history.update(row)
 
-        # Next, minions that operate on derived data
-        pass
+        # Next, minions that operate on tables
+        self.logger.info('Running table minions.')
+        minions.table(self.config)
 
 ########################################################################
 class Observation:
@@ -774,3 +779,6 @@ class GeometryTable(ScienceTable):
     def update(self, row):
         """Add row to table."""
         self._update_unique_column('frame', row)
+
+    def get_frame(self, frame):
+        return self._get_unique_row('frame', frame)

@@ -46,8 +46,11 @@ class FrameMinion(Minion):
         
         Minion.__init__(self, config, minion_directory=minion_directory)
 
+class TableMinion(Minion):
+    pass
+
 def frame(config, im, obs, geom):
-    """Run minions on an individual frame.
+    """Run minions on an individual frames.
 
     Parameters
     ----------
@@ -71,13 +74,47 @@ def frame(config, im, obs, geom):
     from .calibrate import Calibrate
     from .background import Background
     from .cometphot import CometPhot
+    from .calcomet import CalComet
     from ..core import timestamp
 
     logger = logging.getLogger('tgk.science')
     history = []
-    for minion in (Calibrate, Background, CometPhot):
+    for minion in (Calibrate, Background, CometPhot, CalComet):
         try:
             m = minion(config, im, obs, geom)
+            m.run()
+            history.append(m.name)
+        except MinionError as e:
+            err = '   {} {}: {}'.format(timestamp()[:-7], type(e).__name__, e)
+            logger.error(err)
+            break
+
+    return history
+
+def table(config):
+    """Table minions run on tables after all frames have been processed.
+
+    Parameters
+    ----------
+    config : dict
+      Configuration parameters.
+
+    Returns
+    -------
+    history : list of strings
+      Names of the executed minions.
+
+    """
+
+    import logging
+    from .plotcometphot import PlotCometPhot
+    from ..core import timestamp
+
+    logger = logging.getLogger('tgk.science')
+    history = []
+    for minion in (PlotCometPhot,):
+        try:
+            m = minion(config)
             m.run()
             history.append(m.name)
         except MinionError as e:
