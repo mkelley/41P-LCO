@@ -26,9 +26,7 @@ class CometPhot(FrameMinion):
 
     """
 
-    @property
-    def name(self):
-        return 'cometphot'
+    name = 'cometphot'
 
     def run(self):
         import logging

@@ -150,14 +150,14 @@ class Science:
         except KeyboardInterrupt:
             self.logger.info('Caught interrupt signal.  Shutdown.')
     
-    def process(self, reprocess=None):
+    def process(self, reprocess=[]):
         """Run the science pipeline.
 
         Processing history and observation logs are updated.
 
         Parameters
         ----------
-        reprocess : bool, optional
+        reprocess : list, optional
           Default is to run only if there are new files.  Set to 'all'
           to rerun on all frames and tables, or 'tables' to rerun
           tables, even if no new frames are found.
@@ -167,15 +167,16 @@ class Science:
         from astropy.io import fits
         from . import minions
 
-        assert reprocess in [None, 'all', 'tables']
-        if reprocess == 'all':
+        if len(reprocess) == 0:
+            files = self.find_new_data()
+        elif any([r in minions.frame_minion_names for r in reprocess]):
             files = self.files
         else:
-            files = self.find_new_data()
+            files = []
 
         if len(files) == 0:
             self.logger.info('No files to process.')
-            if reprocess is None:
+            if len(reprocess) == 0:
                 # we're done
                 return
     
@@ -202,14 +203,17 @@ class Science:
                 if frame not in self.geometry_table.tab['frame']:
                     self.geometry_table.update(geom.geometry_row())
 
-                minion_history.extend(minions.frame(self.config, im, obs, geom))
+                minion_history.extend(
+                    minions.frame(self.config, im, obs, geom,
+                                  reprocess=reprocess)
+                )
 
             row = (frame, rlevel, ';'.join(minion_history))
             self.processing_history.update(row)
 
         # Next, minions that operate on tables
         self.logger.info('Running table minions.')
-        minions.table(self.config)
+        minions.table(self.config, reprocess=reprocess)
 
 ########################################################################
 class Observation:

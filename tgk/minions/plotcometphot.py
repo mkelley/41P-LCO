@@ -1,8 +1,9 @@
 # Licensed under a MIT style license - see LICENSE
 """plotcometphot - Plot comet photometry."""
 
+from ..core import config
 import matplotlib
-matplotlib.use('AGG')
+matplotlib.use(config['mpl backend'])
 
 from . import TableMinion, MinionError
 
@@ -28,9 +29,7 @@ class PlotCometPhot(TableMinion):
     def __init__(self, config):
         TableMinion.__init__(self, config, minion_directory=True)
 
-    @property
-    def name(self):
-        return 'plotcometphot'
+    name = 'plotcometphot'
 
     def run(self):
         import logging
@@ -40,7 +39,7 @@ class PlotCometPhot(TableMinion):
         from ..science import GeometryTable
 
         logger = logging.getLogger('tgk.science')
-        logger.info('    Plot comet photometry.')
+        logger.info('  Plot comet photometry.')
 
         comet = CometPhotometry()
         geom = GeometryTable()
