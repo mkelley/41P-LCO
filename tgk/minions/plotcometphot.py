@@ -1,6 +1,9 @@
 # Licensed under a MIT style license - see LICENSE
 """plotcometphot - Plot comet photometry."""
 
+import matplotlib
+matplotlib.use('AGG')
+
 from . import TableMinion, MinionError
 
 class PlotCometPhotFailure(MinionError):
