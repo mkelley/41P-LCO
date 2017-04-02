@@ -62,6 +62,7 @@ config_defaults = {
     'download path': '/full/path/to/your/download/directory',
     'science path': '/full/path/to/your/science/directory',
     'calibrate match radius': 1.5,
+    'mpl backend': 'PDF'
 }
 
 def show_config(config_file):

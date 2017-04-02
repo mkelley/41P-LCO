@@ -24,9 +24,7 @@ class CalComet(FrameMinion):
 
     """
 
-    @property
-    def name(self):
-        return 'calcomet'
+    name = 'calcomet'
 
     def run(self):
         import logging

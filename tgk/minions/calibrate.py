@@ -30,9 +30,7 @@ class Calibrate(FrameMinion):
     def __init__(self, *args):
         FrameMinion.__init__(self, *args, minion_directory=True)
     
-    @property
-    def name(self):
-        return 'calibrate'
+    name = 'calibrate'
 
     def run(self):
         import os

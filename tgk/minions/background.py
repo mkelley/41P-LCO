@@ -24,9 +24,7 @@ class Background(FrameMinion):
 
     """
 
-    @property
-    def name(self):
-        return 'background'
+    name = 'background'
 
     def run(self):
         import os
