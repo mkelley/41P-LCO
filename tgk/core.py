@@ -65,12 +65,12 @@ config_defaults = {
     'mpl backend': 'PDF'
 }
 
-def show_config(config_file):
+def show_config(defaults=False):
     import os
     import sys
     import json
 
-    if config_file is None:
+    if defaults:
         print(json.dumps(config_defaults, indent=2))
     elif os.path.exists(config_file):
         with open(config_file) as inf:

@@ -31,7 +31,7 @@ if args.show_config:
     sys.exit()
 
 if args.show_defaults:
-    tgk.show_config(None)
+    tgk.show_config(defaults=True)
     sys.exit()
 
 # delay import to prevent missing config file crashes
