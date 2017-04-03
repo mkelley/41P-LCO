@@ -111,13 +111,14 @@ class Science:
         """Determine which data have not been processed or have an updated rlevel."""
         new_data = []
         for f in self.files:
-            row = self.processing_history.get_frame(f[0])
-            if row is None:
-                new_data.append(f)
-            else:
+            try:
+                row = self.processing_history.get_frame(f[0])
                 last_rlevel = row[1]
                 if last_rlevel < f[1]:
                     new_data.append(f)
+            except IndexError:
+                new_data.append(f)
+                continue
 
         self.logger.info('{} frames are new or updated.'.format(len(new_data)))
         return new_data
@@ -204,9 +205,9 @@ class Science:
                     self.observation_log.update(obs.log_row())
 
                 # only call JPL/HORIZONS if needed
-                if frame in self.geometry_table.tab['frame']:
+                try:
                     data = self.geometry_table.get_frame(frame)
-                else:
+                except IndexError:
                     data = None
                 geom = Geometry(obs, data=data)
                 
