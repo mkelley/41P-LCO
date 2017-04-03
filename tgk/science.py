@@ -671,7 +671,8 @@ class ScienceTable:
         """Write table to file."""
         if self._table_sort is not None:
             self.tab.sort(self._table_sort)
-        self.tab.write(self.filename, delimiter=delimiter, format='ascii.ecsv')
+        self.tab.write(self.filename, delimiter=delimiter,
+                       overwrite=True, format='ascii.ecsv')
 
     def _get_unique_row(self, column, value):
         """Get the row that matches value in column, or else `None`."""
@@ -724,10 +725,6 @@ class ProcessingHistory(ScienceTable):
     def update(self, row):
         """Add row to table."""
         self._update_unique_column('frame', row)
-
-    def write(self):
-        """Write table to file."""
-        ScienceTable.write(self)
 
 class ObservationLog(ScienceTable):
     """Observation log table."""
