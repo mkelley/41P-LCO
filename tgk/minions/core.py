@@ -76,7 +76,7 @@ def frame(config, im, obs, geom, reprocess=[]):
     from ..core import timestamp
 
     if len(reprocess) == 0:
-        reprocess = [m.name for m in frame_minons]
+        reprocess = [m.name for m in frame_minions]
 
     logger = logging.getLogger('tgk.science')
     history = []
