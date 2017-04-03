@@ -21,9 +21,9 @@ parser.add_argument('--start', type=Time, default=Time.now() - 1 * u.day,
 parser.add_argument('--end', type=Time,
                     help=('Search for files before this datem (UTC).'
                           ' (default: None)'))
-parser.add_argument('--rlevels', type=list_of(int), default=[91],
+parser.add_argument('--rlevels', type=list_of(int), default=[11,91],
                     help=('Check for frames with these reduction levels.'
-                          ' (default: 91)'))
+                          ' (default: 11,91)'))
 parser.add_argument('--continuous', action='store_true',
                     help='Continously check LCO for new data.')
 parser.add_argument('--show-config', action='store_true',
