@@ -72,6 +72,12 @@ class PlotCometLoc(FrameMinion):
         yjpl, xjpl = skycoord_to_pixel(self.geom.radec_predict, self.obs.wcs)
         opts = dict(color='k', linewidths=1)
         for i in range(4):
+            axes[i].scatter(self.im.cat['X'], self.im.cat['Y'], s=24,
+                            marker='o', color='w', linewidth=0.5, label=None,
+                            facecolor='none')
+            axes[i].scatter(self.im.cat['X'], self.im.cat['Y'], s=20,
+                            marker='o', color='k', linewidth=0.5, label=None,
+                            facecolor='none')
             axes[i].scatter([xjpl], [yjpl], marker='+', label='JPL/HORIZONS',
                             **opts)
             axes[i].scatter([xc], [yc], marker='x', label='Nearest neighbor',
@@ -79,6 +85,8 @@ class PlotCometLoc(FrameMinion):
 
         axes[0].legend(numpoints=1, prop=dict(size='medium'), loc='upper left')
         plt.setp(axes[2:], xlim=[xc - 100, xc + 100], ylim=[yc - 100, yc + 100])
+        plt.setp(axes[:2], xlim=[0, self.im.shape[0] - 1],
+                 ylim=[0, self.im.shape[1] - 1])
         plt.setp(axes, frame_on=False, xticks=[], yticks=[])
         fig.canvas.draw()
         fig.savefig(self.minion_file('{}.png'.format(self.obs.frame_name)),
