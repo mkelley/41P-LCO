@@ -9,9 +9,10 @@ from .cometphot import CometPhot
 from .calcomet import CalComet
 from .plotcometphot import PlotCometPhot
 from .plotcometloc import PlotCometLoc
+from .megatable import MegaTable
 
 frame_minions = (Calibrate, Background, CometPhot, CalComet, PlotCometLoc)
-table_minions = (PlotCometPhot,)
+table_minions = (PlotCometPhot, MegaTable)
 
 frame_minion_names = [m.name for m in frame_minions]
 table_minion_names = [m.name for m in table_minions]

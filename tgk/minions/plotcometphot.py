@@ -17,12 +17,6 @@ class PlotCometPhot(TableMinion):
     ----------
     config : dict
       Configuration parameters.
-    im : Image
-      Frame data.
-    obs : Observation
-      Frame meta data.
-    geom : Geometry
-      Comet geometric circumstances.
 
     """
 
