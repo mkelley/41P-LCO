@@ -168,6 +168,7 @@ class Science:
         import subprocess
         from astropy.io import fits
         from . import minions
+        from .core import timestamp
 
         # determine which files to process
         if len(reprocess) == 0:
@@ -230,13 +231,15 @@ class Science:
         minions.table(self.config, reprocess=reprocess)
 
         # Finally, the post-science hook
-        if len(self.config['post-science hook'] > 0):
+        if len(self.config['post-science hook']) > 0:
+            logger.info(timestamp()[:-7] + 'Running post-science hook...')
             try:
                 r = subprocess.check_output(self.config['post-science hook'])
                 self.logger.info(r.decode())
             except Exception as e:
                 err = '[Post-science hook] {}: {}'.format(type(e).__name__, e)
                 self.logger.error(err)
+            logger.info(timestamp()[:-7] + '...done.')
 
 ########################################################################
 class Observation:
