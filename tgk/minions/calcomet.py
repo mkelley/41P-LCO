@@ -36,9 +36,12 @@ class CalComet(FrameMinion):
         logger = logging.getLogger('tgk.science')
         logger.info('    Calibrate comet photometry.')
 
-        cal = CalibrationTable().get_frame(self.obs.frame_name)
-        comet_table = CometPhotometry()
-        comet = comet_table.get_frame(self.obs.frame_name)
+        try:
+            cal = CalibrationTable().get_frame(self.obs.frame_name)
+            comet = CometPhotometry().get_frame(self.obs.frame_name)
+        except IndexError as e:
+            raise CalCometFailure(e)
+
         for rap in [1, 2, 3]:
             f = 'f{}'.format(rap)
             ferr = 'ferr{}'.format(rap)
@@ -46,6 +49,6 @@ class CalComet(FrameMinion):
             merr = 'merr{}'.format(rap)
             comet[m] = -2.5 * np.log10(comet[f]) + cal['scmean(dm)']
             comet[merr] = np.sqrt((1.0857 * comet[ferr] / comet[f])**2
-                        + cal['scstdev(dm)']**2)
+                                  + cal['scstdev(dm)']**2)
             
         CometPhotometry().update(comet)

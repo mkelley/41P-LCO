@@ -35,13 +35,20 @@ class PlotCometLoc(FrameMinion):
     name = 'plotcometloc'
 
     def run(self):
+        import logging
         import numpy as np
         import matplotlib.pyplot as plt
         from matplotlib.colors import SymLogNorm
         from astropy.visualization import ZScaleInterval, ImageNormalize
         from astropy.wcs.utils import skycoord_to_pixel
-        
-        comet = CometPhotometry().get_frame(self.obs.frame_name)
+
+        logger = logging.getLogger('tgk.science')
+        logger.info('    Plot comet location.')
+        try:
+            comet = CometPhotometry().get_frame(self.obs.frame_name)
+        except IndexError as e:
+            raise PlotCometLocFailure(e)
+
         yc, xc = int(comet['y']), int(comet['x'])
 
         fig = plt.figure(figsize=(8, 8))
@@ -57,7 +64,6 @@ class PlotCometLoc(FrameMinion):
         axes[2].imshow(self.im.data, **opts)
 
         im = self.im.data - comet['bg']
-        print(im[yc, xc], comet['bg'], comet['bgsig'], yc, xc)
         opts['norm'] = SymLogNorm(comet['bgsig'], vmin=-comet['bgsig'],
                                   vmax=im[yc, xc])
         axes[1].imshow(im, **opts)

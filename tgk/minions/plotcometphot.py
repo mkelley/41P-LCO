@@ -48,11 +48,14 @@ class PlotCometPhot(TableMinion):
         fig.clear()
         ax = fig.add_subplot(111)
 
-        date = ['T'.join((geom.get_frame(frame)['date'],
-                          geom.get_frame(frame)['time']))
-                for frame in comet.tab['frame']]
-        date = np.array(date)
+        try:
+            date = ['T'.join((geom.get_frame(frame)['date'],
+                              geom.get_frame(frame)['time']))
+                    for frame in comet.tab['frame']]
+        except IndexError as e:
+            raise PlotCometPhotFailure(e)  # missing geometry
         
+        date = np.array(date)
         rh = [geom.get_frame(frame)['rh'] for frame in comet.tab['frame']]
         rh = np.array(rh)
         

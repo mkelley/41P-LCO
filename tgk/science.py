@@ -167,6 +167,7 @@ class Science:
         from astropy.io import fits
         from . import minions
 
+        # determine which files to process
         if len(reprocess) == 0:
             files = self.find_new_data()
         elif any([r in minions.frame_minion_names for r in reprocess]):
@@ -186,7 +187,16 @@ class Science:
             n_remaining -= 1
             self.logger.info('  {} [{} remaining]'.format(frame, n_remaining))
 
-            minion_history = []
+            # Append to prior minion_history, if any
+            try:
+                minion_history = self.processing_history.get_frame(frame)[2]
+                if minion_history is not np.ma.masked:
+                    minion_history = minion_history.split(';')
+                else:
+                    minion_history = []
+            except IndexError:
+                minion_history = []
+                
             with fits.open(filename) as hdu:
                 im = Image(hdu)
                 obs = Observation(im.header)
@@ -208,7 +218,7 @@ class Science:
                                   reprocess=reprocess)
                 )
 
-            row = (frame, rlevel, ';'.join(minion_history))
+            row = (frame, rlevel, ';'.join(np.unique(minion_history)))
             self.processing_history.update(row)
 
         # Next, minions that operate on tables
@@ -668,7 +678,8 @@ class ScienceTable:
             i = np.flatnonzero(self.tab[column] == value)[0]
             return self.tab[i]
         else:
-            return None
+            raise IndexError('{} not in {} table.'.format(
+                value, self._table_title))
         
     def _update_unique_column(self, unique_column, row):
         """Update table with new data.

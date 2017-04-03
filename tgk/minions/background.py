@@ -47,7 +47,7 @@ class Background(FrameMinion):
             all_backgrounds.extend(clipped[~clipped.mask])
 
         row.extend(self._est(all_backgrounds)[1:])
-                
+        
         BackgroundTable().update(row)
 
     def _est(self, a, sigma_lower=3, sigma_upper=2.5, **kwargs):

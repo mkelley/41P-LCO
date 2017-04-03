@@ -54,7 +54,10 @@ class CometPhot(FrameMinion):
         comet = self.im.cat[match]
         
         # Take comet photometry and use our own background estimate
-        bg = BackgroundTable().get_frame(self.obs.frame_name)
+        try:
+            bg = BackgroundTable().get_frame(self.obs.frame_name)
+        except IndexError as e:
+            raise CometPhotFailure(e)
         
         # first index: aperture, second: flux and ferr
         flux = np.empty((3, 2))
