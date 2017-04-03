@@ -42,6 +42,7 @@ class Calibrate(FrameMinion):
         from astropy.coordinates import SkyCoord, match_coordinates_sky
         from astropy import stats
         from astropy.io import votable
+        from astropy.table import Table
         from .. import lco
 
         # calibration log
@@ -130,18 +131,18 @@ class Calibrate(FrameMinion):
         log.extend(mms)
         
         # measure magnitude offset, use ADU/s
-        m = -2.5 * np.log10(self.im.cat['FLUX'][i] / self.obs.exptime.value)
-        merr = 1.0857 * self.im.cat['FLUXERR'][i] / self.im.cat['FLUX'][i]
-        dm = cat.array[ps1magfield][match][i] - m
-        dm_err = np.sqrt(merr**2 + cat.array[ps1magfield + 'err'][match][i]**2)
+        m = -2.5 * np.log10(self.im.cat['FLUX'] / self.obs.exptime.value)
+        merr = 1.0857 * self.im.cat['FLUXERR'] / self.im.cat['FLUX']
+        dm = cat.array[ps1magfield][match] - m
+        dm_err = np.sqrt(merr**2 + cat.array[ps1magfield + 'err'][match]**2)
 
-        if any(~np.isfinite(dm * dm_err)):
+        if any(~np.isfinite(dm[i] * dm_err[i])):
             raise CalibrationFailure('Not all values are finite: {}.'.format(
                 self.obs.frame_name))
         
         # cal stats
-        minmax = min(dm), max(dm)
-        mms = stats.sigma_clipped_stats(dm)
+        minmax = min(dm[i]), max(dm[i])
+        mms = stats.sigma_clipped_stats(dm[i])
         self.logger.debug('''      - delta-mag range: {minmax[0]:.3f} - {minmax[1]:.3f}
       - Sigma-clipped mean/median/stddev = {mms[0]:.3f}/{mms[1]:.3f}/{mms[2]:.3f} arcsec.'''.format(minmax=minmax, mms=mms))
         log.extend(minmax)
@@ -149,6 +150,77 @@ class Calibrate(FrameMinion):
 
         # save to calibration log
         CalibrationTable().update(log)
+
+        # save match catalog
+        tab = Table(data=(cat.array['objname'][match],
+                          cat.array['ramean'][match],
+                          cat.array['decmean'][match],
+                          self.im.cat['RA'] - cat.array['ramean'][match],
+                          self.im.cat['DEC'] - cat.array['decmean'][match],
+                          sep.to(u.arcsec).value,
+                          cat.array['gflags'][match].astype(int),
+                          cat.array['gmeanapmag'][match],
+                          cat.array['gmeanapmagerr'][match],
+                          cat.array['rflags'][match].astype(int),
+                          cat.array['rmeanapmag'][match],
+                          cat.array['rmeanapmagerr'][match],
+                          self.im.cat['X'],
+                          self.im.cat['Y'],
+                          self.im.cat['BACKGROUND'] / self.obs.exptime.value,
+                          self.im.cat['FWHM'] * self.obs.pixel_scale,
+                          self.im.cat['FLUX'] / self.obs.exptime.value,
+                          self.im.cat['FLUXERR'] / self.obs.exptime.value,
+                          dm,
+                          i),
+                    names=('objname',
+                           'RAmean',
+                           'DECmean',
+                           'RA_LCO - RA_PS1',
+                           'DEC_LCO - DEC_PS1',
+                           'sep',
+                           'gflags',
+                           'gmeanapmag',
+                           'gmeanapmagerr',
+                           'rflags',
+                           'rmeanapmag',
+                           'rmeanapmagerr',
+                           'x',
+                           'y',
+                           'bg',
+                           'FWHM',
+                           'flux',
+                           'fluxerr',
+                           'dm',
+                           'valid match'),
+                    dtype=(['U64'] + [float] * 5
+                           + [int, float, float] * 2
+                           + [float] * 7
+                           + [bool])
+        )
+        cformats = ([None] + ['{:.6f}'] * 4
+                    + ['{:.2f}']
+                    + [None, '{:.3f}', '{:.3f}'] * 2
+                    + ['{:.2f}'] * 6 + ['{:.3f}', None])
+        tab.meta = OrderedDict()
+        tab.meta['objname'] = 'PS1 object name.'
+        tab.meta['ramean/decmean'] = 'PS1 mean RA DEC (deg).'
+        tab.meta['x_LCO - x_PS1'] = 'Offset between LCO object and PS1 match (deg).'
+        tab.meta['sep'] = 'Radial offset magnitude (arcsec).'
+        tab.meta['gflags'] = 'PS1 catalog g\' flags.'
+        tab.meta['gmeanapmag/err'] = 'PS1 g\' aperture photometry magnitude and err (mag).'
+        tab.meta['rflags'] = 'PS1 catalog r\' flags.'
+        tab.meta['rmeanapmag/err'] = 'PS1 r\' aperture photometry magnitude and err (mag).'
+        tab.meta['x/y'] = 'LCO source position on CCD (pixels).'
+        tab.meta['bg'] = 'LCO source background (ADU/s/pixel).'
+        tab.meta['FWHM'] = 'LCO source FWHM (arcsec).'
+        tab.meta['flux'] = 'LCO source flux (ADU/s).'
+        tab.meta['fluxerr'] = 'LCO source flux uncertainty (ADU/s).'
+        tab.meta['dm'] = 'Difference between calibrated magnitude and instrumental magnitude (mag).'
+        tab.meta['valid match'] = 'Flag that indicates if the match and photometry was presumed to be valid.'
+        for col, cformat in zip(tab.colnames, cformats):
+            tab[col].format = cformat
+        fn = self.minion_file('{}-matches.csv'.format(self.obs.frame_name))
+        tab.write(fn, format='ascii.ecsv', overwrite=True, delimiter=' ')
 
 class CalibrationTable(ScienceTable):
     _table_title = 'calibration'
