@@ -152,7 +152,7 @@ class Science:
             self.logger.info('Caught interrupt signal.  Shutdown.')
     
     def process(self, reprocess=[]):
-        """Run the science pipeline.
+        """Run the science pipeline and post-science hook.
 
         Processing history and observation logs are updated.
 
@@ -164,7 +164,8 @@ class Science:
           tables, even if no new frames are found.
 
         """
-        
+
+        import subprocess
         from astropy.io import fits
         from . import minions
 
@@ -227,6 +228,15 @@ class Science:
         # Next, minions that operate on tables
         self.logger.info('Running table minions.')
         minions.table(self.config, reprocess=reprocess)
+
+        # Finally, the post-science hook
+        if len(self.config['post-science hook'] > 0):
+            try:
+                r = subprocess.check_output(self.config['post-science hook'])
+                self.logger.info(r.decode())
+            except Exception as e:
+                err = '[Post-science hook] {}: {}'.format(type(e).__name__, e)
+                self.logger.error(err)
 
 ########################################################################
 class Observation:
