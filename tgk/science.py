@@ -171,6 +171,8 @@ class Science:
         # determine which files to process
         if len(reprocess) == 0:
             files = self.find_new_data()
+        elif 'all' in reprocess:
+            files = self.files
         elif any([r in minions.frame_minion_names for r in reprocess]):
             files = self.files
         else:

@@ -62,7 +62,7 @@ def frame(config, im, obs, geom, reprocess=[]):
       Comet geometric circumstances.
     reprocess : list, optional
       Only run these minions (implies their requirements have already
-      been met).
+      been met).  If empty or 'all', run all minions.
 
     Returns
     -------
@@ -82,7 +82,7 @@ def frame(config, im, obs, geom, reprocess=[]):
     history = []
     for minion in frame_minions:
         try:
-            if minion.name not in reprocess:
+            if minion.name not in reprocess and 'all' not in reprocess:
                 continue
             m = minion(config, im, obs, geom)
             m.run()
@@ -123,7 +123,7 @@ def table(config, reprocess=[]):
     history = []
     for minion in table_minions:
         try:
-            if minion.name not in reprocess:
+            if minion.name not in reprocess and 'all' not in reprocess:
                 continue
             m = minion(config)
             m.run()
