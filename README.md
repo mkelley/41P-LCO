@@ -11,6 +11,7 @@ Follow up Team: Quan-Zhi Ye, Henry Hsieh, Zhong-Yi Lin, Emmanuel Jehin, Colin Sn
 # Requirements
 * Python3
 * [numpy](https://www.numpy.org)
+* [scipy](https://www.scipy.org)
 * [astropy](https://www.astropy.org)
 * [requests](http://docs.python-requests.org/en/master/)
 * [callhorizons](https://github.com/mommermi/callhorizons)
