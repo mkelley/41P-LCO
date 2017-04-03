@@ -85,8 +85,8 @@ class PlotCometLoc(FrameMinion):
 
         axes[0].legend(numpoints=1, prop=dict(size='medium'), loc='upper left')
         plt.setp(axes[2:], xlim=[xc - 100, xc + 100], ylim=[yc - 100, yc + 100])
-        plt.setp(axes[:2], xlim=[0, self.im.data.shape[0] - 1],
-                 ylim=[0, self.im.data.shape[1] - 1])
+        plt.setp(axes[:2], xlim=[0, self.im.data.shape[1] - 1],
+                 ylim=[0, self.im.data.shape[0] - 1])
         plt.setp(axes, frame_on=False, xticks=[], yticks=[])
         fig.canvas.draw()
         fig.savefig(self.minion_file('{}.png'.format(self.obs.frame_name)),
