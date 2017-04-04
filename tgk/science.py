@@ -17,16 +17,20 @@ class Science:
       default.
     rlevel : int, optional
       LCO reduction level to consider, or `None` for the most current.
+    log_to_file : bool, optional
+      Set to `False` to disable logging to a file, e.g., for debugging
+      in interactive mode.
 
     """
 
-    def __init__(self, rlevel=None):
+    def __init__(self, rlevel=None, log_to_file=True):
         import logging
         from .core import setup_logger, open_log_file, config
 
         self.logger = setup_logger('tgk.science')
-        log_file = os.sep.join((config['science path'], 'tgk-science.log'))
-        open_log_file(log_file, 'tgk.science')
+        if log_to_file:
+            log_file = os.sep.join((config['science path'], 'tgk-science.log'))
+            open_log_file(log_file, 'tgk.science')
 
         self.config = config
 
@@ -42,7 +46,6 @@ class Science:
         self.observation_log = ObservationLog()
         self.geometry_table = GeometryTable()
         self.processing_history = ProcessingHistory()
-        self.find_data()
 
     def find_data(self):
         """Find comet data."""
@@ -167,6 +170,8 @@ class Science:
         from . import minions
         from .core import timestamp
 
+        self.find_data()
+        
         # determine which files to process
         if len(reprocess) == 0:
             files = self.find_new_data()
