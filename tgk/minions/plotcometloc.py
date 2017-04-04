@@ -69,7 +69,7 @@ class PlotCometLoc(FrameMinion):
         axes[1].imshow(im, **opts)
         axes[3].imshow(im, **opts)
 
-        yjpl, xjpl = skycoord_to_pixel(self.geom.radec_predict, self.obs.wcs)
+        xjpl, yjpl = skycoord_to_pixel(self.geom.radec_predict, self.obs.wcs)
         opts = dict(color='k', linewidths=1)
         for i in range(4):
             axes[i].scatter(self.im.cat['X'], self.im.cat['Y'], s=24,
