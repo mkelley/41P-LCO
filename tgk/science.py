@@ -234,14 +234,14 @@ class Science:
 
         # Finally, the post-science hook
         if len(self.config['post-science hook']) > 0:
-            logger.info(timestamp()[:-7] + 'Running post-science hook...')
+            self.logger.info(timestamp()[:-7] + 'Running post-science hook...')
             try:
                 r = subprocess.check_output(self.config['post-science hook'])
                 self.logger.info(r.decode())
             except Exception as e:
                 err = '[Post-science hook] {}: {}'.format(type(e).__name__, e)
                 self.logger.error(err)
-            logger.info(timestamp()[:-7] + '...done.')
+            self.logger.info(timestamp()[:-7] + '...done.')
 
 ########################################################################
 class Observation:
