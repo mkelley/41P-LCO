@@ -25,6 +25,7 @@ def setup_logger(logging_name, debug=False):
     console = logging.StreamHandler(sys.stdout)
     console.setFormatter(formatter)
     logger.addHandler(console)
+    return logger
 
 def open_log_file(log_file, logger_name):
     logger = logging.getLogger(logger_name)
