@@ -7,11 +7,6 @@ Thanks to Nestor Espinoza's lcogtDD for an example on syncing with LCO.
 
 import os
 from .core import ArchiveFileAlreadyExists, AuthorizationError
-from .core import setup_logger, open_log_file, config
-
-logger = setup_logger('tgk.sync')
-log_file = os.sep.join((config['download path'], 'tgk-sync.log'))
-open_log_file(log_file, 'tgk.sync')
 
 class Sync:
     """Sync observations with LCO.
@@ -30,9 +25,12 @@ class Sync:
         import logging
         import astropy.units as u
         from astropy.time import Time
-        from .core import config
+        from .core import setup_logger, open_log_file, config
 
-        self.logger = logging.getLogger('tgk.sync')
+        self.logger = setup_logger('tgk.sync')
+        log_file = os.sep.join((config['download path'], 'tgk-sync.log'))
+        open_log_file(log_file, 'tgk.sync')
+
         self.config = config
 
         self.request_delay = 1 * u.s

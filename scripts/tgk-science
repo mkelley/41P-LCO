@@ -22,6 +22,8 @@ parser.add_argument('--show-config', action='store_true',
                     help='Read and print the configuration file.')
 parser.add_argument('--show-defaults', action='store_true',
                     help='Print the default configuration file.')
+parser.add_argument('--show-minions', action='store_true',
+                    help='Show available science minions.')
 parser.add_argument('-v', action='store_true', help='Increase verbosity.')
 
 args = parser.parse_args()
@@ -32,6 +34,18 @@ if args.show_config:
 
 if args.show_defaults:
     tgk.show_config(defaults=True)
+    sys.exit()
+
+if args.show_minions:
+    from tgk import minions
+    fm = '\n  '.join(minions.frame_minion_names)
+    tm = '\n  '.join(minions.table_minion_names)
+    print("""Frame minions:
+  {}
+
+Table minions:
+  {}
+""".format(fm, tm))
     sys.exit()
 
 # delay import to prevent missing config file crashes

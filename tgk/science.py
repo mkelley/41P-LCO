@@ -6,12 +6,6 @@ from collections import OrderedDict
 import numpy as np
 import astropy.units as u
 from astropy.coordinates import Angle
-from . import core
-from .core import setup_logger, open_log_file, config
-
-logger = setup_logger('tgk.science')
-log_file = os.sep.join((config['science path'], 'tgk-science.log'))
-open_log_file(log_file, 'tgk.science')
 
 class Science:
     """Comet science with LCO data.
@@ -28,9 +22,12 @@ class Science:
 
     def __init__(self, rlevel=None):
         import logging
-        from .core import config
+        from .core import setup_logger, open_log_file, config
 
-        self.logger = logging.getLogger('tgk.science')
+        self.logger = setup_logger('tgk.science')
+        log_file = os.sep.join((config['science path'], 'tgk-science.log'))
+        open_log_file(log_file, 'tgk.science')
+
         self.config = config
 
         assert isinstance(rlevel, (int, type(None))), 'rlevel must be integer or `None`.'
@@ -645,6 +642,7 @@ class ScienceTable:
 
     """
     def __init__(self, filename, verbose=True):
+        from .core import config
         self.verbose = verbose
         self.filename = os.sep.join([config['science path'], filename])
         self.read()
