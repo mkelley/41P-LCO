@@ -685,7 +685,7 @@ class ScienceTable:
                 logger.info('Initialized empty {} table.'.format(
                     self._table_title))
 
-    def write(self, delimiter=' '):
+    def write(self, delimiter=','):
         """Write table to file."""
         if self._table_sort is not None:
             self.tab.sort(self._table_sort)
