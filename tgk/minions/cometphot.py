@@ -62,7 +62,8 @@ class CometPhot(FrameMinion):
         # first index: aperture, second: flux and ferr
         flux = np.empty((3, 2))
         for i, col in enumerate(['FLUXAPER2', 'FLUXAPER4', 'FLUXAPER6']):
-            area = 3.1416 * (1 / self.obs.pixel_scale.value)**2
+            rap = float(col[-1]) / 2 / self.obs.pixel_scale.value  # pixels
+            area = 3.1416 * rap**2
             flux[i, 0] = comet[col] + comet['BACKGROUND'] * area
 
             bgvar = area * bg['bgsig']**2 * (1 + area / bg['bgarea'])
