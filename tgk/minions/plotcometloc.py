@@ -90,5 +90,5 @@ class PlotCometLoc(FrameMinion):
         plt.setp(axes, frame_on=False, xticks=[], yticks=[])
         fig.canvas.draw()
         fig.savefig(self.minion_file('{}.png'.format(self.obs.frame_name)),
-                    dpi=200)
+                    dpi=75)
         plt.close(fig)
