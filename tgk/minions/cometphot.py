@@ -43,9 +43,13 @@ class CometPhot(FrameMinion):
         logger.info('    Comet photometry.')
 
         # find comet in LCO catalog
-        lco = SkyCoord(ra=self.im.cat['RA'],
-                       dec=self.im.cat['DEC'],
-                       unit='deg')
+        try:
+            lco = SkyCoord(ra=self.im.cat['RA'],
+                           dec=self.im.cat['DEC'],
+                           unit='deg')
+        except IndexError:
+            raise CometPhotFailure('{}: {}'.format(type(e).__name__, e))
+
         c = self.geom.radec_predict
         match, sep = match_coordinates_sky(c, lco)[:2]
         match = int(match)  # avoid len of unsized object bug
