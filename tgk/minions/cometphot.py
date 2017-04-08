@@ -47,7 +47,7 @@ class CometPhot(FrameMinion):
             lco = SkyCoord(ra=self.im.cat['RA'],
                            dec=self.im.cat['DEC'],
                            unit='deg')
-        except IndexError:
+        except KeyError as e:
             raise CometPhotFailure('{}: {}'.format(type(e).__name__, e))
 
         c = self.geom.radec_predict
