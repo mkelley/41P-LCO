@@ -237,7 +237,7 @@ class CalibrationTable(ScienceTable):
     _table_meta['filter'] = 'LCO filter name'
     _table_meta['N cat'] = 'Number of objects in LCO photometry catalog.'
     _table_meta['N match'] = 'Number of objects matched with PS1 catalog, after distance and non-zero flux tests.'
-    _table_meta['mean(FWHM)'] = 'Mean LCO FWHM of matched objects.'
+    _table_meta['mean(FWHM)'] = 'Mean LCO FWHM of matched objects, arcsec.'
     _table_meta['mean(background)'] = 'Mean LCO photometry catalog background for matched objects, ADU/s.'
     _table_meta['sep'] = 'Spherical distance between matched objects, arcsec.'
     _table_meta['dm'] = 'Difference in magnitudes between matched objects.'
