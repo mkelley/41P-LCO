@@ -43,6 +43,8 @@ class MegaTable(TableMinion):
             tab = join(tab, background.tab)
             tab = join(tab, phot.tab)
 
+            tab.sort(['date', 'time'])
+            
             tab.write(self.minion_file('frame-megatable.csv'), delimiter=',',
                       format='ascii.ecsv', overwrite=True)
         except Exception as e:
