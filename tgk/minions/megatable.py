@@ -43,7 +43,7 @@ class MegaTable(TableMinion):
             tab = join(tab, background.tab)
             tab = join(tab, phot.tab)
 
-            tab.write(self.minion_file('frame-megatable.csv'), delimiter=' ',
+            tab.write(self.minion_file('frame-megatable.csv'),
                       format='ascii.ecsv', overwrite=True)
         except Exception as e:
             raise MegaTableFailure('{}: {}'.format(type(e).__name__, e))
