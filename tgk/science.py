@@ -240,7 +240,7 @@ class Science:
 
         # Finally, the post-science hook
         if len(self.config['post-science hook']) > 0:
-            self.logger.info(timestamp()[:-7] + 'Running post-science hook...')
+            self.logger.info(timestamp()[:-7] + ' Running post-science hook...')
             try:
                 r = subprocess.check_output(self.config['post-science hook'])
                 self.logger.info(r.decode())
