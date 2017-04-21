@@ -203,27 +203,33 @@ class Science:
                     minion_history = []
             except IndexError:
                 minion_history = []
-                
-            with fits.open(filename) as hdu:
-                im = Image(hdu)
-                obs = Observation(im.header)
-                if frame not in self.observation_log.tab['frame']:
-                    self.observation_log.update(obs.log_row())
 
-                # only call JPL/HORIZONS if needed
-                try:
-                    data = self.geometry_table.get_frame(frame)
-                except IndexError:
-                    data = None
-                geom = Geometry(obs, data=data)
-                
-                if frame not in self.geometry_table.tab['frame']:
-                    self.geometry_table.update(geom.geometry_row())
+            try:
+                hdu = fits.open(filename)
+            except IOError as e:
+                self.logger.error('{}: {}'.format(e, filename))
+                continue
 
-                minion_history.extend(
-                    minions.frame(self.config, im, obs, geom,
-                                  reprocess=reprocess)
-                )
+            im = Image(hdu)
+            obs = Observation(im.header)
+            if frame not in self.observation_log.tab['frame']:
+                self.observation_log.update(obs.log_row())
+
+            # only call JPL/HORIZONS if needed
+            try:
+                data = self.geometry_table.get_frame(frame)
+            except IndexError:
+                data = None
+            geom = Geometry(obs, data=data)
+
+            if frame not in self.geometry_table.tab['frame']:
+                self.geometry_table.update(geom.geometry_row())
+
+            hist = minions.frame(self.config, im, obs, geom,
+                                 reprocess=reprocess)
+            minion_history.extend(hist)
+
+            hdu.close()
 
             row = (frame, rlevel, ';'.join(np.unique(minion_history)))
             self.processing_history.update(row)
