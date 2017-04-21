@@ -220,7 +220,7 @@ class Calibrate(FrameMinion):
         for col, cformat in zip(tab.colnames, cformats):
             tab[col].format = cformat
         fn = self.minion_file('{}-matches.csv'.format(self.obs.frame_name))
-        tab.write(fn, format='ascii.ecsv', overwrite=True, delimiter=' ')
+        tab.write(fn, format='ascii.ecsv', overwrite=True, delimiter=',')
 
 class CalibrationTable(ScienceTable):
     _table_title = 'calibration'
