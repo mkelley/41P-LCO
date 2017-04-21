@@ -733,7 +733,7 @@ class ScienceTable:
 class ProcessingHistory(ScienceTable):
     """Processing history table."""
 
-    _table_title = 'observation log'
+    _table_title = 'processing history'
     _table_columns = ('frame', 'rlevel', 'minions')
     _table_dtypes = ('U64', 'U3', 'U256')
     _table_meta = OrderedDict()
