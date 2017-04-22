@@ -35,6 +35,7 @@ class PlotCometLoc(FrameMinion):
     name = 'plotcometloc'
 
     def run(self):
+        import os
         import logging
         import numpy as np
         import matplotlib.pyplot as plt
@@ -89,6 +90,13 @@ class PlotCometLoc(FrameMinion):
                  ylim=[0, self.im.data.shape[0] - 1])
         plt.setp(axes, frame_on=False, xticks=[], yticks=[])
         fig.canvas.draw()
-        fig.savefig(self.minion_file('{}.png'.format(self.obs.frame_name)),
-                    dpi=75)
+
+        date = self.obs.time.iso[:10].replace('-', '')
+        fn = self.minion_file('{}/{}.png'.format(date, self.obs.frame_name))
+        d = os.path.split(fn)[0]
+        if not os.path.exists(d):
+            os.mkdir(d)
+            self.logger.info('Created directory {}.'.format(d))
+            
+        fig.savefig(fn, dpi=75)
         plt.close(fig)
