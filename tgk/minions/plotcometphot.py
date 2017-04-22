@@ -29,6 +29,7 @@ class PlotCometPhot(TableMinion):
         import logging
         import numpy as np
         import matplotlib.pyplot as plt
+        from astropy.time import Time
         from .cometphot import CometPhotometry
         from ..science import GeometryTable
 
@@ -38,9 +39,6 @@ class PlotCometPhot(TableMinion):
         comet = CometPhotometry()
         geom = GeometryTable()
 
-        fig = plt.figure()
-        fig.clear()
-        ax = fig.add_subplot(111)
 
         try:
             date = ['T'.join((geom.get_frame(frame)['date'],
@@ -50,23 +48,58 @@ class PlotCometPhot(TableMinion):
             raise PlotCometPhotFailure(e)  # missing geometry
         
         date = np.array(date)
+        tmtp = Time(date, scale='utc').jd - 2457856.252
         rh = [geom.get_frame(frame)['rh'] for frame in comet.tab['frame']]
-        rh = np.array(rh)
-        
-        rh[date < '2017-04-12T00:45:07'] *= -1
-        
-        i = comet.tab['filter'] == 'rp'
-        opts = dict(ls='none', marker='.', ecolor='0.5')
-        ax.errorbar(rh[i], comet.tab['m2'][i], comet.tab['merr2'][i],
-                    color='b', label='2" radius', **opts)
-        ax.errorbar(rh[i], comet.tab['m3'][i], comet.tab['merr3'][i],
-                    color='r', label='3" radius', **opts)
+        delta = [geom.get_frame(frame)['delta'] for frame in comet.tab['frame']]
+        d_correction = 2.5 * np.log10(delta)
+        opts = dict(ls='none', marker='.', ecolor='0.5', alpha=0.5)
 
-        plt.setp(ax, xlabel=r'$r_h$ (au)', ylabel=r"$r'$ (mag)",
-                 ylim=ax.get_ylim()[::-1])
-        plt.legend(numpoints=1, prop=dict(size='medium'))
+        ######################################################################
+        fig = plt.figure(figsize=(8, 8))
+        fig.clear()
+        axes = [fig.add_subplot(gs) for gs in
+                plt.GridSpec(2, 1, wspace=0, hspace=0)]
+
+        i = comet.tab['filter'] == 'rp'
+        for ap, color in zip('23', 'rb'):
+            t = tmtp[i]
+            m = comet.tab['m' + ap][i]
+            merr = comet.tab['merr' + ap][i]
+            kwargs = dict(color=color, label=ap + '" radius', **opts)
+            axes[0].errorbar(t, m, merr, **kwargs)
+            axes[1].errorbar(t, m - d_correction[i], merr, **kwargs)
+
+        plt.setp(axes[0], ylabel=r"$r'$ (mag)", ylim=axes[0].get_ylim()[::-1])
+        plt.setp(axes[1], xlabel=r'$T-T_p$ (days)',
+                 ylim=axes[1].get_ylim()[::-1],
+                 ylabel=r"$r' - 2.5 \log{\Delta}$ (mag)")
+        axes[0].legend(numpoints=1, prop=dict(size='medium'))
         
         fig.canvas.draw()
-        fig.savefig(self.minion_file('m-vs-rh.png'), dpi=200)
-        fig.savefig(self.minion_file('m-vs-rh.pdf'), dpi=200)
+        fig.savefig(self.minion_file('rp-vs-rh.png'), dpi=200)
+        fig.savefig(self.minion_file('rp-vs-rh.pdf'), dpi=200)
+
+        ######################################################################
+        fig.clear()
+        axes = [fig.add_subplot(gs) for gs in
+                plt.GridSpec(2, 1, wspace=0, hspace=0)]
+
+        i = comet.tab['filter'] == 'gp'
+        for ap, color in zip('23', 'rb'):
+            t = tmtp[i]
+            m = comet.tab['m' + ap][i]
+            merr = comet.tab['merr' + ap][i]
+            kwargs = dict(color=color, label=ap + '" radius', **opts)
+            axes[0].errorbar(t, m, merr, **kwargs)
+            axes[1].errorbar(t, m - d_correction[i], merr, **kwargs)
+
+        plt.setp(axes[0], ylabel=r"$g'$ (mag)", ylim=axes[0].get_ylim()[::-1])
+        plt.setp(axes[1], xlabel=r'$T-T_p$ (days)',
+                 ylim=axes[1].get_ylim()[::-1],
+                 ylabel=r"$g' - 2.5 \log{\Delta}$ (mag)")
+        axes[0].legend(numpoints=1, prop=dict(size='medium'))
+        
+        fig.canvas.draw()
+        fig.savefig(self.minion_file('gp-vs-rh.png'), dpi=200)
+        fig.savefig(self.minion_file('gp-vs-rh.pdf'), dpi=200)
         plt.close(fig)
