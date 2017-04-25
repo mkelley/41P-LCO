@@ -7,10 +7,8 @@ import logging
 import astropy.units as u
 from astropy.time import Time
 import tgk
+import tgk.sync
 from tgk.core import list_of
-
-default_config = os.sep.join([os.path.expanduser('~'), '.config',
-                              '41p-lco', 'config.json'])
 
 parser = argparse.ArgumentParser(description='Sync with LCO archive.')
 parser.add_argument('--no-download', dest='download', action='store_false',
@@ -35,16 +33,16 @@ parser.add_argument('-v', action='store_true',
 
 args = parser.parse_args()
 
-if args.show_config:
-    tgk.show_config()
-    sys.exit()
-
 if args.show_defaults:
     tgk.show_config(defaults=True)
     sys.exit()
 
-# delay import to prevent missing config file crashes
-import tgk.sync
+tgk.configure()
+
+if args.show_config:
+    tgk.show_config()
+    sys.exit()
+
 if args.v:
     logging.getLogger('tgk.sync').setLevel(logging.DEBUG)
 

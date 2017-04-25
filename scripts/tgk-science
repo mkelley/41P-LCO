@@ -5,10 +5,8 @@ import sys
 import argparse
 import logging
 import tgk
+import tgk.science
 from tgk.core import list_of
-
-default_config = os.sep.join([os.path.expanduser('~'), '.config',
-                              '41p-lco', 'config.json'])
 
 parser = argparse.ArgumentParser(description='41P/TGK science pipeline.')
 parser.add_argument('--rlevel', type=int,
@@ -28,12 +26,14 @@ parser.add_argument('-v', action='store_true', help='Increase verbosity.')
 
 args = parser.parse_args()
 
-if args.show_config:
-    tgk.show_config()
-    sys.exit()
-
 if args.show_defaults:
     tgk.show_config(defaults=True)
+    sys.exit()
+
+tgk.configure()
+
+if args.show_config:
+    tgk.show_config()
     sys.exit()
 
 if args.show_minions:

@@ -86,6 +86,8 @@ def configure():
     import os
     import json
 
+    global config
+
     if os.path.exists(config_file):
         with open(config_file) as inf:
             try:
@@ -109,8 +111,6 @@ Use --show-config for an example.""".format(config_file))
         assert os.path.isdir(config[k]), (
             '{} is not a directory or does not exist.'.format(
                 config[k]))
-
-    return config
 
 ########################################################################
 def get_filename(frame, rlevel=None):
@@ -152,4 +152,4 @@ def list_of(type):
 
 config_file = os.sep.join([os.path.expanduser('~'), '.config',
                            '41p-lco', 'config.json'])
-config = configure()
+config = None
