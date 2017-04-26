@@ -59,7 +59,7 @@ def timestamp():
 config_defaults = {
     'username': 'your@email',
     'password': 'your_password',
-    'proposal': 'LCO2016B-109',
+    'proposal': 'NOAO2017AB-001',
     'download path': '/full/path/to/your/download/directory',
     'science path': '/full/path/to/your/science/directory',
     'calibrate match radius': 1.5,
