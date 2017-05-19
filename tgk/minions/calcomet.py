@@ -42,7 +42,7 @@ class CalComet(FrameMinion):
         except IndexError as e:
             raise CalCometFailure(e)
 
-        for rap in [1, 2, 3]:
+        for rap in [2, 4, 6]:
             f = 'f{}'.format(rap)
             ferr = 'ferr{}'.format(rap)
             m = 'm{}'.format(rap)
