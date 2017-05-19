@@ -81,7 +81,7 @@ class PlotCometLoc(FrameMinion):
                             facecolor='none')
             axes[i].scatter([xjpl], [yjpl], marker='+', label='JPL/HORIZONS',
                             **opts)
-            axes[i].scatter([xc], [yc], marker='x', label='Nearest neighbor',
+            axes[i].scatter([xc], [yc], marker='x', label='Centroid',
                             **opts)
 
         axes[0].legend(numpoints=1, prop=dict(size='medium'), loc='upper left')

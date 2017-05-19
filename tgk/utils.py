@@ -132,6 +132,37 @@ def apphot(im, yx, rap, subsample=4, **kwargs):
     else:
         return n, f
 
+def cutout(yx, half_size, shape=None):
+    """Return a slice to cut out a subarray from an array.
+
+    Parameters
+    ----------
+    yx : array of ints
+      The center of the cutout.
+    half_size : int or array of ints
+      The half_size of the array.  The cut out will have shape `2 *
+      half_size + 1`.
+    shape : tuple, optional
+      If provided, then the slice will not extend beyond the lengths
+      of the axes.
+    
+    Returns
+    -------
+    s : slice
+
+    """
+
+    if shape is None:
+        shape = (inf, inf)
+    if not np.iterable(half_size):
+        half_size = (half_size, half_size)
+
+    s = np.s_[max(yx[0] - half_size[0], 0):
+              min(yx[0] + half_size[0] + 1, shape[0]),
+              max(yx[1] - half_size[1], 0):
+              min(yx[1] + half_size[1] + 1, shape[1])]
+    return s
+
 def gaussian(x, mu, sigma):
     """A normalized Gaussian curve.
 

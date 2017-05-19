@@ -37,17 +37,14 @@ class CometPhot(FrameMinion):
         from astropy.coordinates import SkyCoord
         from astropy.wcs.utils import skycoord_to_pixel
         from .background import BackgroundTable
-        from ..utils import apphot
+        from ..utils import apphot, gcentroid
 
         warnings.simplefilter('ignore', MaskedArrayFutureWarning)
             
         logger = logging.getLogger('tgk.science')
         logger.info('    Comet photometry.')
 
-        # centroid around the JPL/HORIZONS prediction
-        yxg = skycoord_to_pixel(self.geom.radec_predict, self.obs.wcs)[::-1]
-        yxc = gcentroid(self.im.data, yxg, box=21, niter=5)
-        sep = np.sqrt(np.sum((np.array(yxg) - np.array(yxc))**2))
+        yxc, sep = self.centroid()
 
         # Get background estimate
         try:
@@ -64,10 +61,66 @@ class CometPhot(FrameMinion):
         
         row = [self.obs.frame_name, self.obs.filter,
                sep, yxc[1], yxc[0], bg['bg'], bg['bgsig'], bg['bgarea']]
-        row.extend(zip(flux, ferr))
+        
+        row.extend([flux[0], ferr[0], flux[1], ferr[1], flux[2], ferr[2]])
         row.extend(np.zeros(6))  # magnitude columns
 
         CometPhotometry().update(row)
+
+    def centroid(self):
+        """Find the comet using the HORIZONS position as a guess.
+
+        1) Smooth the image with a 1/ρ kernel.
+
+        2) Find the peak pixel in a box near the ephemeris position.
+
+        3) Centroid about this point.
+
+        """
+
+        import logging
+        import numpy as np
+        import astropy.units as u
+        from astropy.convolution import convolve
+        from astropy.wcs.utils import skycoord_to_pixel
+        from ..utils import cutout, gcentroid
+
+        logger = logging.getLogger('tgk.science')
+
+        # pre-computed 1/ρ kernel
+        K = np.array(
+            [[ 0.14142136,  0.15617376,  0.17149859,  0.18569534,  0.19611614, 0.2       ,  0.19611614,  0.18569534,  0.17149859,  0.15617376, 0.14142136],
+             [ 0.15617376,  0.1767767 ,  0.2       ,  0.2236068 ,  0.24253563, 0.25      ,  0.24253563,  0.2236068 ,  0.2       ,  0.1767767 , 0.15617376],
+             [ 0.17149859,  0.2       ,  0.23570226,  0.2773501 ,  0.31622777, 0.33333333,  0.31622777,  0.2773501 ,  0.23570226,  0.2       , 0.17149859],
+             [ 0.18569534,  0.2236068 ,  0.2773501 ,  0.35355339,  0.4472136 , 0.5       ,  0.4472136 ,  0.35355339,  0.2773501 ,  0.2236068 , 0.18569534],
+             [ 0.19611614,  0.24253563,  0.31622777,  0.4472136 ,  0.70710678, 1.        ,  0.70710678,  0.4472136 ,  0.31622777,  0.24253563, 0.19611614],
+             [ 0.2       ,  0.25      ,  0.33333333,  0.5       ,  1.        , 1.        ,  1.        ,  0.5       ,  0.33333333,  0.25      , 0.2       ],
+             [ 0.19611614,  0.24253563,  0.31622777,  0.4472136 ,  0.70710678, 1.        ,  0.70710678,  0.4472136 ,  0.31622777,  0.24253563, 0.19611614],
+             [ 0.18569534,  0.2236068 ,  0.2773501 ,  0.35355339,  0.4472136 , 0.5       ,  0.4472136 ,  0.35355339,  0.2773501 ,  0.2236068 , 0.18569534],
+             [ 0.17149859,  0.2       ,  0.23570226,  0.2773501 ,  0.31622777, 0.33333333,  0.31622777,  0.2773501 ,  0.23570226,  0.2       , 0.17149859],
+             [ 0.15617376,  0.1767767 ,  0.2       ,  0.2236068 ,  0.24253563, 0.25      ,  0.24253563,  0.2236068 ,  0.2       ,  0.1767767 , 0.15617376],
+             [ 0.14142136,  0.15617376,  0.17149859,  0.18569534,  0.19611614, 0.2       ,  0.19611614,  0.18569534,  0.17149859,  0.15617376, 0.14142136]]
+        )
+        
+        yxg = skycoord_to_pixel(self.geom.radec_predict, self.obs.wcs)[::-1]
+        # smooth and find peak pixel
+        if self.geom.delta < 0.25 * u.au:
+            cut = cutout(np.array(yxg, int), 30, self.im.data.shape)
+        else:
+            cut = cutout(np.array(yxg, int), 15, self.im.data.shape)
+
+        subim = self.im.data[cut]
+        if subim.shape[0] == 0 or subim.shape[1] == 0:
+            raise CometPhotFailure('Ephemeris position outside of image.')
+            
+        sim = convolve(subim, K, boundary='fill', fill_value=0)
+        y, x = np.unravel_index(sim.argmax(), sim.shape)
+        y = float(y + cut[0].start)
+        x = float(x + cut[1].start)
+        
+        yxc = gcentroid(self.im.data, (y, x), box=13, niter=3)
+        sep = np.sqrt(np.sum((np.array(yxg) - np.array(yxc))**2))
+        return yxc, sep
 
 class CometPhotometry(ScienceTable):
     """All comet photometry.
