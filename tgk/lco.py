@@ -13,6 +13,7 @@ mpc_codes = {
     ('cpt', 'doma', '1m0a'): 'K91',
     ('cpt', 'domb', '1m0a'): 'K92',
     ('cpt', 'domc', '1m0a'): 'K93',
+    ('coj', 'clma', '0m4a'): 'Q59',  # MSK's guess
     ('coj', 'clma', '0m4b'): 'Q59',
     ('coj', 'doma', '1m0a'): 'Q63',
     ('coj', 'domb', '1m0a'): 'Q64',
