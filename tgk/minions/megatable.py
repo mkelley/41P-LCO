@@ -27,7 +27,7 @@ class MegaTable(TableMinion):
         from ..science import GeometryTable, ProcessingHistory, ObservationLog
 
         logger = logging.getLogger('tgk.science')
-        logger.info('  Create mega-table.')
+        logger.debug('  Create mega-table.')
 
         try:
             obslog = ObservationLog()

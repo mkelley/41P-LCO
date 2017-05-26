@@ -59,8 +59,7 @@ class Science:
         pat = os.sep.join((self.config['download path'], rlevel_dir,
                            '2017*', '*fz'))
         all_files = sorted(glob(pat))
-        self.logger.info('{} files match.'.format(
-            len(all_files)))
+        msg = '{} files found'.format(len(all_files)))
 
         # frame name, rlevel, full path
         all_files = sorted([(os.path.basename(f)[:-12], f[-11:-8], f)
@@ -68,15 +67,14 @@ class Science:
 
         if self.rlevel is None:
             unique, duplicates = self._find_duplicates(all_files)
-            self.logger.info('{} frames have multiple reduction levels.'.format(len(duplicates)))
 
             # thanks to sort order and rlevel format, x[-1] will
             # always be the most current version:
             all_files = sorted(unique + [x[-1] for x in duplicates])
 
-            self.logger.info('{} files will be considered.'.format(
-                len(all_files)))
+            msg += ', {} remain after removing duplicates'.format(len(all_files)))
 
+        logger.debug(msg + '.')
         self.files = all_files
 
     def _find_duplicates(self, files):
@@ -120,7 +118,7 @@ class Science:
                 new_data.append(f)
                 continue
 
-        self.logger.info('{} frames are new or updated.'.format(len(new_data)))
+        self.logger.info(timestamp()[:-7] + ' {} frames are new or updated.'.format(len(new_data)))
         return new_data
 
     def continuous_process(self):
@@ -138,7 +136,6 @@ class Science:
             while True:
                 now = Time.now()
                 if (now - last_science) > delay:
-                    self.logger.info(timestamp() + ' Checking local archive.')
                     self.process()
                     last_science = Time.now()
                 else:
@@ -183,7 +180,6 @@ class Science:
             files = []
 
         if len(files) == 0:
-            self.logger.info('No files to process.')
             if len(reprocess) == 0:
                 # we're done
                 return
@@ -192,7 +188,7 @@ class Science:
         n_remaining = len(files)
         for frame, rlevel, filename in files:
             n_remaining -= 1
-            self.logger.info('  {} [{} remaining]'.format(frame, n_remaining))
+            self.logger.info('  {} [{} of {} remaining]'.format(frame, n_remaining, len(files)))
 
             # Append to prior minion_history, if any
             try:
@@ -235,7 +231,7 @@ class Science:
             self.processing_history.update(row)
 
         # Next, minions that operate on tables
-        self.logger.info('Running table minions.')
+        self.logger.debug('Running table minions.')
         minions.table(self.config, reprocess=reprocess)
 
         # Finally, the post-science hook
@@ -503,7 +499,7 @@ class Geometry:
         from . import lco
 
         logger = logging.getLogger('tgk.science')
-        logger.info('      Get geometry from HORIZONS.')
+        logger.debug('      Get geometry from HORIZONS.')
         q = callhorizons.query('41P')
         q.set_discreteepochs([obs.time.jd])
         obs_code = lco.mpc_codes[(obs.site[0], obs.enclosure[0], obs.telescope[0])]
@@ -684,11 +680,11 @@ class ScienceTable:
             self.tab = vstack((self.tab, tab))
 
             if self.verbose:
-                logger.info('Read {} table from {}.'.format(
+                logger.debug('Read {} table from {}.'.format(
                     self._table_title, self.filename))
         else:
             if self.verbose:
-                logger.info('Initialized empty {} table.'.format(
+                logger.debug('Initialized empty {} table.'.format(
                     self._table_title))
 
     def write(self, delimiter=','):
