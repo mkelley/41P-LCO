@@ -37,7 +37,6 @@ class CometPhot(FrameMinion):
         from astropy.coordinates import SkyCoord
         from astropy.wcs.utils import skycoord_to_pixel
         from .background import BackgroundTable
-        from ..utils import apphot, gcentroid
 
         warnings.simplefilter('ignore', MaskedArrayFutureWarning)
             
@@ -54,10 +53,7 @@ class CometPhot(FrameMinion):
         
         # photometry
         rap = np.array((2, 4, 6)) / self.obs.pixel_scale
-        area, flux = apphot(self.im.data - bg['bg'], yxc, rap, subsample=1)
-        flux /= self.obs.exptime.value
-        bgvar = area * bg['bgsig']**2 * (1 + area / bg['bgarea'])
-        ferr = np.sqrt(flux / self.obs.gain.value + bgvar)
+        area, flux, ferr = self.apphot(yxc, rap, bg)
         
         row = [self.obs.frame_name, self.obs.filter,
                sep, yxc[1], yxc[0], bg['bg'], bg['bgsig'], bg['bgarea']]
@@ -122,6 +118,18 @@ class CometPhot(FrameMinion):
         sep = np.sqrt(np.sum((np.array(yxg) - np.array(yxc))**2))
         return yxc, sep
 
+    def apphot(self, yxc, rap, bg):
+        """Standard aperture photometry on the image data."""
+        import numpy as np
+        from ..utils import apphot
+        
+        area, flux = apphot(self.im.data - bg['bg'], yxc, rap, subsample=1)
+        bgvar = area * bg['bgsig']**2 * (1 + area / bg['bgarea'])
+        ferr = np.sqrt(flux / self.obs.gain.value + bgvar)
+        flux /= self.obs.exptime.value
+        ferr /= self.obs.exptime.value
+        return area, flux, ferr
+    
 class CometPhotometry(ScienceTable):
     """All comet photometry.
 
