@@ -147,7 +147,53 @@ class Science:
                     self.logger.debug('Awake!')
         except KeyboardInterrupt:
             self.logger.info('Caught interrupt signal.  Shutdown.')
-    
+
+    @classmethod
+    def get_frame_data(cls, frame, filename):
+        """Data as Image and Observation classes."""
+        from astropy.io import fits
+
+        hdu = fits.open(filename, mode='readonly')
+        im = Image(hdu)
+        obs = Observation(im.header)
+        
+        return im, obs
+
+    @classmethod
+    def get_geometry(cls, frame, obs):
+        """Geometry metadata as Geometry class."""
+        # only call JPL/HORIZONS if needed
+        try:
+            g = cls.geometry_table
+        except AttributeError:
+            g = GeometryTable()
+
+        try:
+            data = g.get_frame(frame)
+        except IndexError:
+            data = None
+            
+        return Geometry(obs, data=data)
+
+    @classmethod
+    def get_minion_history(cls, frame):
+        """Return any known minion processing history."""
+        try:
+            processing_history = cls.processing_history
+        except AttributeError:
+            processing_history = ProcessingHistory()
+
+        try:
+            minion_history = processing_history.get_frame(frame)[2]
+            if minion_history is not np.ma.masked:
+                minion_history = minion_history.split(';')
+            else:
+                minion_history = []
+        except IndexError:
+            minion_history = []
+
+        return minion_history
+            
     def process(self, reprocess=[]):
         """Run the science pipeline and post-science hook.
 
@@ -163,7 +209,6 @@ class Science:
         """
 
         import subprocess
-        from astropy.io import fits
         from . import minions
         from .core import timestamp
 
@@ -190,42 +235,23 @@ class Science:
             n_remaining -= 1
             self.logger.info('  {} [{} of {} remaining]'.format(frame, n_remaining, len(files)))
 
-            # Append to prior minion_history, if any
             try:
-                minion_history = self.processing_history.get_frame(frame)[2]
-                if minion_history is not np.ma.masked:
-                    minion_history = minion_history.split(';')
-                else:
-                    minion_history = []
-            except IndexError:
-                minion_history = []
-
-            try:
-                hdu = fits.open(filename)
+                im, obs = self.get_frame_data(frame, filename)
             except IOError as e:
                 self.logger.error('{}: {}'.format(e, filename))
-                continue
-
-            im = Image(hdu)
-            obs = Observation(im.header)
+                
             if frame not in self.observation_log.tab['frame']:
                 self.observation_log.update(obs.log_row())
-
-            # only call JPL/HORIZONS if needed
-            try:
-                data = self.geometry_table.get_frame(frame)
-            except IndexError:
-                data = None
-            geom = Geometry(obs, data=data)
+                
+            geom = self.get_geometry(frame, obs)
 
             if frame not in self.geometry_table.tab['frame']:
                 self.geometry_table.update(geom.geometry_row())
 
             hist = minions.frame(self.config, im, obs, geom,
                                  reprocess=reprocess)
+            minion_history = self.get_minion_history(frame)
             minion_history.extend(hist)
-
-            hdu.close()
 
             row = (frame, rlevel, ';'.join(np.unique(minion_history)))
             self.processing_history.update(row)

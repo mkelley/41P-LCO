@@ -61,7 +61,7 @@ class PlotCometPhot(TableMinion):
                 plt.GridSpec(2, 1, wspace=0, hspace=0)]
 
         i = comet.tab['filter'] == 'rp'
-        for ap, color in zip('23', 'rb'):
+        for ap, color in zip('26', 'rb'):
             t = tmtp[i]
             m = comet.tab['m' + ap][i]
             merr = comet.tab['merr' + ap][i]
@@ -85,7 +85,7 @@ class PlotCometPhot(TableMinion):
                 plt.GridSpec(2, 1, wspace=0, hspace=0)]
 
         i = comet.tab['filter'] == 'gp'
-        for ap, color in zip('23', 'rb'):
+        for ap, color in zip('26', 'rb'):
             t = tmtp[i]
             m = comet.tab['m' + ap][i]
             merr = comet.tab['merr' + ap][i]
