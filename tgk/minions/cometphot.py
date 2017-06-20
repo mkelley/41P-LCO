@@ -41,7 +41,7 @@ class CometPhot(FrameMinion):
         warnings.simplefilter('ignore', MaskedArrayFutureWarning)
             
         logger = logging.getLogger('tgk.science')
-        logger.info('    Comet photometry.')
+        logger.debug('    Comet photometry.')
 
         yxc, sep = self.centroid()
 

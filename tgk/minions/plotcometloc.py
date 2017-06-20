@@ -44,7 +44,7 @@ class PlotCometLoc(FrameMinion):
         from astropy.wcs.utils import skycoord_to_pixel
 
         logger = logging.getLogger('tgk.science')
-        logger.info('    Plot comet location.')
+        logger.debug('    Plot comet location.')
         try:
             comet = CometPhotometry().get_frame(self.obs.frame_name)
         except IndexError as e:
@@ -96,7 +96,7 @@ class PlotCometLoc(FrameMinion):
         d = os.path.split(fn)[0]
         if not os.path.exists(d):
             os.mkdir(d)
-            self.logger.info('Created directory {}.'.format(d))
+            self.logger.debug('Created directory {}.'.format(d))
             
         fig.savefig(fn, dpi=75)
         plt.close(fig)

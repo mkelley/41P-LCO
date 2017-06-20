@@ -34,7 +34,7 @@ class PlotCometPhot(TableMinion):
         from ..science import GeometryTable
 
         logger = logging.getLogger('tgk.science')
-        logger.info('  Plot comet photometry.')
+        logger.debug('  Plot comet photometry.')
 
         comet = CometPhotometry()
         geom = GeometryTable()

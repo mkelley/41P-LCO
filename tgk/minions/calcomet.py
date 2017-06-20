@@ -34,7 +34,7 @@ class CalComet(FrameMinion):
         from .calibrate import CalibrationTable
 
         logger = logging.getLogger('tgk.science')
-        logger.info('    Calibrate comet photometry.')
+        logger.debug('    Calibrate comet photometry.')
 
         try:
             cal = CalibrationTable().get_frame(self.obs.frame_name)
