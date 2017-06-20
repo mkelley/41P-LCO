@@ -59,7 +59,7 @@ class Science:
         pat = os.sep.join((self.config['download path'], rlevel_dir,
                            '2017*', '*fz'))
         all_files = sorted(glob(pat))
-        msg = '{} files found'.format(len(all_files)))
+        msg = '{} files found'.format(len(all_files))
 
         # frame name, rlevel, full path
         all_files = sorted([(os.path.basename(f)[:-12], f[-11:-8], f)
@@ -72,9 +72,9 @@ class Science:
             # always be the most current version:
             all_files = sorted(unique + [x[-1] for x in duplicates])
 
-            msg += ', {} remain after removing duplicates'.format(len(all_files)))
+            msg += ', {} remain after removing duplicates'.format(len(all_files))
 
-        logger.debug(msg + '.')
+        self.logger.debug(msg + '.')
         self.files = all_files
 
     def _find_duplicates(self, files):
@@ -107,6 +107,7 @@ class Science:
         
     def find_new_data(self):
         """Determine which data have not been processed or have an updated rlevel."""
+        from .core import timestamp
         new_data = []
         for f in self.files:
             try:
