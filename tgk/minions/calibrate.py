@@ -56,7 +56,7 @@ class Calibrate(FrameMinion):
             raise CalibrationFailure('Missing RA and DEC in source table.')
         
         if not os.path.exists(fn):
-            self.logger.info('    Retrieving PS1 catalog.'.format())
+            self.logger.debug('    Retrieving PS1 catalog.'.format())
             r = max(self.im.data.shape) * self.obs.pixel_scale * 2 / 3
             r = min(r, 30 * u.arcmin)  # STScI has a 30 arcmin max radius
             c = self.geom.radec_predict
@@ -84,7 +84,7 @@ class Calibrate(FrameMinion):
             with open(fn, 'w') as outf:
                 outf.write(q.text)
 
-        self.logger.info('    Reading PS1 catalog from {} .'.format(fn))
+        self.logger.debug('    Reading PS1 catalog from {} .'.format(fn))
 
         # suppress VOTable version warning
         warnings.simplefilter('ignore', category=votable.VOWarning)
@@ -118,7 +118,7 @@ class Calibrate(FrameMinion):
         # match stats
         minmax = min(sep[i].to(u.arcsec).value), max(sep[i].to(u.arcsec).value)
         mms = stats.sigma_clipped_stats(sep[i].to(u.arcsec).value)
-        self.logger.info('    {} of {} objects matched to PS1 after distance and non-zero flux tests.'.format(i.sum(), len(lco)))
+        self.logger.debug('    {} of {} objects matched to PS1 after distance and non-zero flux tests.'.format(i.sum(), len(lco)))
         self.logger.debug('''      - Best/worst match separation distance: {0[0]:.2f}/{0[1]:.2f}
       - Sigma-clipped separation: mean/median/stddev = {1[0]:.2f}/{1[1]:.2f}/{1[2]:.2f} arcsec.'''.format(minmax, mms))
 

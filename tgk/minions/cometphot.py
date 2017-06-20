@@ -40,7 +40,7 @@ class CometPhot(FrameMinion):
         warnings.simplefilter('ignore', MaskedArrayFutureWarning)
             
         logger = logging.getLogger('tgk.science')
-        logger.info('    Comet photometry.')
+        logger.debug('    Comet photometry.')
 
         # find comet in LCO catalog
         try:
@@ -53,7 +53,7 @@ class CometPhot(FrameMinion):
         c = self.geom.radec_predict
         match, sep = match_coordinates_sky(c, lco)[:2]
         match = int(match)  # avoid len of unsized object bug
-        logger.info('      Matched comet from HORIZONS coordinates to LCO object {:.2f} away.'.format(sep[0].to(u.arcsec)))
+        logger.debug('      Matched comet from HORIZONS coordinates to LCO object {:.2f} away.'.format(sep[0].to(u.arcsec)))
         
         comet = self.im.cat[match]
         

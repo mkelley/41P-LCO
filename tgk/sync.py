@@ -217,7 +217,7 @@ class Sync:
 
             data = self.request('https://archive-api.lco.global/frames/',
                                 query=query)
-            self.logger.info('{} Found {} frames with reduction level {}.'.format(timestamp(), data['count'], rlevel))
+            self.logger.debug('{} Found {} frames with reduction level {}.'.format(timestamp(), data['count'], rlevel))
 
             dl_count = 0
             skip_count = 0

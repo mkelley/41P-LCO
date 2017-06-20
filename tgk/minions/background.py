@@ -33,7 +33,7 @@ class Background(FrameMinion):
         import numpy as np
         from numpy.ma.core import MaskedArrayFutureWarning
         
-        logging.getLogger('tgk.science').info('    Measuring background.')
+        logging.getLogger('tgk.science').debug('    Measuring background.')
 
         sky = self.im.data[self.obs.trimsec]
         
