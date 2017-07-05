@@ -56,7 +56,10 @@ class CometPhot(FrameMinion):
         area, flux, ferr = self.apphot(yxc, rap, bg)
         
         row = [self.obs.frame_name, self.obs.filter,
-               sep, yxc[1], yxc[0], bg['bg'], bg['bgsig'], bg['bgarea']]
+               sep, yxc[1], yxc[0],
+               bg['bg'] / self.obs.exptime.value,
+               bg['bgsig'] / self.obs.exptime.value,
+               bg['bgarea']]
         
         row.extend([flux[0], ferr[0], flux[1], ferr[1], flux[2], ferr[2]])
         row.extend(np.zeros(6))  # magnitude columns
@@ -126,8 +129,8 @@ class CometPhot(FrameMinion):
         area, flux = apphot(self.im.data - bg['bg'], yxc, rap, subsample=1)
         bgvar = area * bg['bgsig']**2 * (1 + area / bg['bgarea'])
         ferr = np.sqrt(flux / self.obs.gain.value + bgvar)
-        flux /= self.obs.exptime.value
-        ferr /= self.obs.exptime.value
+        flux = flux / self.obs.exptime.value
+        ferr = ferr / self.obs.exptime.value
         return area, flux, ferr
     
 class CometPhotometry(ScienceTable):
