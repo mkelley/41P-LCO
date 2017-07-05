@@ -154,10 +154,10 @@ class Science:
         """Data as Image and Observation classes."""
         from astropy.io import fits
 
-        hdu = fits.open(filename, mode='readonly')
-        im = Image(hdu)
-        obs = Observation(im.header)
-        
+        with fits.open(filename, mode='readonly', lazy_load=False) as hdu:
+            im = Image(hdu)
+            obs = Observation(im.header.copy())
+
         return im, obs
 
     @classmethod
@@ -640,9 +640,12 @@ class Image:
 
     def __init__(self, hdu):
         from astropy.table import Table
-        self._hdu = hdu
+        from astropy.io import fits
+        self._hdu = fits.HDUList()
+        self._hdu.append(hdu[0].copy())
+        self._hdu.append(hdu['sci'].copy())
         self._bpm = hdu['bpm'].data.astype(bool)
-        self._cat = Table(hdu['cat'].data)
+        self._cat = Table(hdu['cat'].data.copy())
 
     @property
     def header(self):
