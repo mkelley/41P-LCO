@@ -132,7 +132,7 @@ class CometPhot(FrameMinion):
         flux = flux / self.obs.exptime.value
         ferr = ferr / self.obs.exptime.value
         return area, flux, ferr
-    
+
 class CometPhotometry(ScienceTable):
     """All comet photometry.
 
@@ -144,7 +144,8 @@ class CometPhotometry(ScienceTable):
     """
     _table_title = 'comet photometry'
     _table_columns = [
-        'frame', 'filter', 'match sep', 'x', 'y', 'bg', 'bgsig', 'bgarea',
+        'frame', 'filter', 'match sep', 'x', 'y',
+        'comet bg', 'comet bgsig', 'bgarea',
         'f2', 'ferr2', 'f4', 'ferr4', 'f6', 'ferr6',
         'm2', 'merr2', 'm4', 'merr4', 'm6', 'merr6',
     ]
@@ -153,17 +154,17 @@ class CometPhotometry(ScienceTable):
     _table_meta['filter'] = 'LCO filter name.'
     _table_meta['match sep'] = 'Distance between HORIZONS prediction and object centroid, pixels.'
     _table_meta['x/y'] = 'Aperture center, 0-based index, pixels.'
-    _table_meta['bg'] = 'Background estimate, ADU/s/pixel.'
-    _table_meta['bgsig'] = 'Background standard deviation per pixel.'
-    _table_meta['bgarea'] = 'Area used for background estimate.'
+    _table_meta['comet bg'] = 'Background estimate, ADU/s/pixel.'
+    _table_meta['comet bgsig'] = 'Background standard deviation per pixel.'
+    _table_meta['comet bgarea'] = 'Area used for background estimate.'
     _table_meta['fi, ferri'] = 'Background subtracted flux and error estimates for 2, 4, and 6 radius apertures, ADU/s.'
     _table_meta['mi, merri'] = 'Calibrated magnitudes for each aperture, AB mag.'
     _table_formats = {
         'match sep': '{:.2f}',
         'x': '{:.2f}',
         'y': '{:.2f}',
-        'bg': '{:.2f}',
-        'bgsig': '{:.2f}',
+        'comet bg': '{:.2f}',
+        'comet bgsig': '{:.2f}',
         'f2': '{:.5g}',
         'f4': '{:.5g}',
         'f6': '{:.5g}',

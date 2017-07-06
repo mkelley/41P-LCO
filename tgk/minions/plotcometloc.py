@@ -64,8 +64,8 @@ class PlotCometLoc(FrameMinion):
         axes[0].imshow(self.im.data, **opts)
         axes[2].imshow(self.im.data, **opts)
 
-        im = self.im.data - comet['bg']
-        opts['norm'] = SymLogNorm(comet['bgsig'], vmin=-comet['bgsig'],
+        im = self.im.data - comet['comet bg']
+        opts['norm'] = SymLogNorm(comet['comet bgsig'], vmin=-comet['comet bgsig'],
                                   vmax=im[yc, xc])
         axes[1].imshow(im, **opts)
         axes[3].imshow(im, **opts)
