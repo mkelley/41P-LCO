@@ -30,6 +30,10 @@ if args.show_defaults:
     tgk.show_config(defaults=True)
     sys.exit()
 
+if len(args.reprocess) > 0 and args.continuous:
+    print("--reprocess and --continuous cannot be simultaneously specified.")
+    sys.exit(1)
+
 tgk.configure()
 
 if args.show_config:
@@ -69,4 +73,4 @@ except Exception as e:
         raise(e)
     else:
         print(err)
-        sys.exit()
+        sys.exit(1)
