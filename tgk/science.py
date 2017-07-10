@@ -345,7 +345,7 @@ class Observation:
     def log_row(self):
         """Format data for adding to an observation log."""
         return (self.frame_name, self.time.iso[:10], self.time.iso[11:19],
-                '{0[0]}x{0[1]}'.format(self.binning),
+                self.pixel_scale.value, '{0[0]}x{0[1]}'.format(self.binning),
                 self.exptime.value, self.airmass, self.filter)
 
     ############################################################
@@ -781,12 +781,14 @@ class ObservationLog(ScienceTable):
 
     _table_title = 'observation log'
     _table_columns = (
-        'frame', 'date', 'time', 'binning', 'exptime', 'airmass', 'filter'
+        'frame', 'date', 'time', 'pixel scale' 'binning', 'exptime',
+        'airmass', 'filter'
     )
-    _table_dtypes = ('U64', 'U10', 'U8', 'U3', float, float, 'U2')
+    _table_dtypes = ('U64', 'U10', 'U8', float, 'U3', float, float, 'U2')
     _table_meta = OrderedDict()
     _table_meta['date/time'] = 'UTC.'
     _table_meta['binning'] = 'Original CCD pixels bin factor.'
+    _table_meta['pixel scale'] = 'Binned pixel scale, arcsec.'
     _table_meta['exptime'] = 'Frame exposure time, s.'
     _table_meta['filter'] = 'LCO filter name.'
     _table_formats = {
