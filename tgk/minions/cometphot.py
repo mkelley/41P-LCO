@@ -82,7 +82,7 @@ class CometPhot(FrameMinion):
         import astropy.units as u
         from astropy.convolution import convolve
         from astropy.wcs.utils import skycoord_to_pixel
-        from ..utils import cutout, gcentroid
+        from ..utils import cutout, gcentroid, UnableToCenter
 
         logger = logging.getLogger('tgk.science')
 
@@ -116,8 +116,17 @@ class CometPhot(FrameMinion):
         y, x = np.unravel_index(sim.argmax(), sim.shape)
         y = float(y + cut[0].start)
         x = float(x + cut[1].start)
-        
-        yxc = gcentroid(self.im.data, (y, x), box=13, niter=3)
+
+        box = 13
+        while box >= 3:
+            try:
+                yxc = gcentroid(self.im.data, (y, x), box=13, niter=3)
+                break
+            except UnableToCenter:
+                box -= 2
+        else:
+            raise CometPhotFailure('Unable to center target.')
+                
         sep = np.sqrt(np.sum((np.array(yxg) - np.array(yxc))**2))
         return yxc, sep
 
