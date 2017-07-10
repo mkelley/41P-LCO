@@ -13,6 +13,7 @@ Follow up Team: Quan-Zhi Ye, Henry Hsieh, Zhong-Yi Lin, Emmanuel Jehin, Colin Sn
 * [numpy](https://www.numpy.org)
 * [scipy](https://www.scipy.org)
 * [astropy](https://www.astropy.org)
+* [photutils](https://github.com/astropy/photutils)
 * [requests](http://docs.python-requests.org/en/master/)
 * [callhorizons](https://github.com/mommermi/callhorizons)
 * [matplotlib](https://www.matplotlib.org)
