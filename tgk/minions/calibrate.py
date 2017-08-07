@@ -124,7 +124,7 @@ class Calibrate(FrameMinion):
 
         log.append(len(lco))
         log.append(i.sum())
-        log.append(np.mean(self.im.cat['FWHM'][i]) * self.obs.pixel_scale)
+        log.append(np.mean(self.im.cat['FWHM'][i]))
         log.append(np.mean(self.im.cat['BACKGROUND'][i])
                    / self.obs.exptime.value)
         log.extend(minmax)
