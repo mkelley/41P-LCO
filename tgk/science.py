@@ -195,13 +195,15 @@ class Science:
 
         return minion_history
             
-    def process(self, reprocess=[]):
+    def process(self, n=None, reprocess=[]):
         """Run the science pipeline and post-science hook.
 
         Processing history and observation logs are updated.
 
         Parameters
         ----------
+        n : int, optional
+          Process `n` frames and quit.
         reprocess : list, optional
           Default is to run only if there are new files.  Set to 'all'
           to rerun on all frames and tables, or 'tables' to rerun
@@ -229,7 +231,11 @@ class Science:
             if len(reprocess) == 0:
                 # we're done
                 return
-    
+
+        # limit processing to n files?
+        if n is not None:
+            files = files[:n]
+            
         # First, minions that operate on individual frames
         n_remaining = len(files)
         for frame, rlevel, filename in files:
