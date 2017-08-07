@@ -65,8 +65,9 @@ class PlotCometLoc(FrameMinion):
         axes[2].imshow(self.im.data, **opts)
 
         im = self.im.data - comet['comet bg']
-        opts['norm'] = SymLogNorm(comet['comet bgsig'], vmin=-comet['comet bgsig'],
-                                  vmax=im[yc, xc])
+        opts['norm'] = SymLogNorm(comet['comet bgsig'],
+                                  vmin=-comet['comet bgsig'],
+                                  vmax=im[yc, xc] if im[yc, xc] > -comet['comet bgsig'] else comet['comet bgsig'])
         axes[1].imshow(im, **opts)
         axes[3].imshow(im, **opts)
 
@@ -97,6 +98,9 @@ class PlotCometLoc(FrameMinion):
         if not os.path.exists(d):
             os.mkdir(d)
             self.logger.debug('Created directory {}.'.format(d))
-            
-        fig.savefig(fn, dpi=75)
+
+        try:
+            fig.savefig(fn, dpi=75)
+        except ValueError as e:
+            raise PlotCometLocFailure("Failed to save image {}: {}".format(fn, e))
         plt.close(fig)
