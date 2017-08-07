@@ -663,6 +663,9 @@ class Image:
     def cat(self):
         return self._cat
 
+class ScienceTableError(Exception):
+    pass
+
 class ScienceTable:
     """Science table convenience class.
 
@@ -705,7 +708,11 @@ class ScienceTable:
 
         logger = logging.getLogger('tgk.science')
         if os.path.exists(self.filename):
-            tab = ascii.read(self.filename, format='ecsv')
+            try:
+                tab = ascii.read(self.filename, format='ecsv')
+            except ValueError as e:
+                raise ScienceTableError("Error reading {}: {}".format(self.filename, e))
+            
             tab.meta = OrderedDict()  # no need to duplicate meta data
             self.tab = vstack((self.tab, tab))
 
@@ -781,7 +788,7 @@ class ObservationLog(ScienceTable):
 
     _table_title = 'observation log'
     _table_columns = (
-        'frame', 'date', 'time', 'pixel scale' 'binning', 'exptime',
+        'frame', 'date', 'time', 'pixel scale', 'binning', 'exptime',
         'airmass', 'filter'
     )
     _table_dtypes = ('U64', 'U10', 'U8', float, 'U3', float, float, 'U2')
