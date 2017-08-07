@@ -61,7 +61,7 @@ Table minions:
 # delay import to prevent missing config file crashes
 import tgk.science
 if args.v:
-    logging.getLogger('tgk.sync').setLevel(logging.DEBUG)
+    logging.getLogger('tgk.science').setLevel(logging.DEBUG)
 
 try:
     science = tgk.science.Science(rlevel=args.rlevel)
