@@ -61,23 +61,24 @@ class PlotCometPhot(TableMinion):
                 plt.GridSpec(2, 1, wspace=0, hspace=0)]
 
         i = comet.tab['filter'] == 'rp'
-        for ap, color in zip('26', 'rb'):
-            t = tmtp[i]
-            m = comet.tab['m' + ap][i]
-            merr = comet.tab['merr' + ap][i]
-            kwargs = dict(color=color, label=ap + '" radius', **opts)
-            axes[0].errorbar(t, m, merr, **kwargs)
-            axes[1].errorbar(t, m - d_correction[i], merr, **kwargs)
+        if i.sum() != 0:
+            for ap, color in zip('26', 'rb'):
+                t = tmtp[i]
+                m = comet.tab['m' + ap][i]
+                merr = comet.tab['merr' + ap][i]
+                kwargs = dict(color=color, label=ap + '" radius', **opts)
+                axes[0].errorbar(t, m, merr, **kwargs)
+                axes[1].errorbar(t, m - d_correction[i], merr, **kwargs)
 
-        plt.setp(axes[0], ylabel=r"$r'$ (mag)", ylim=axes[0].get_ylim()[::-1])
-        plt.setp(axes[1], xlabel=r'$T-T_p$ (days)',
-                 ylim=axes[1].get_ylim()[::-1],
-                 ylabel=r"$r' - 2.5 \log{\Delta}$ (mag)")
-        axes[0].legend(numpoints=1, prop=dict(size='medium'))
-        
-        fig.canvas.draw()
-        fig.savefig(self.minion_file('rp-vs-rh.png'), dpi=200)
-        fig.savefig(self.minion_file('rp-vs-rh.pdf'), dpi=200)
+            plt.setp(axes[0], ylabel=r"$r'$ (mag)", ylim=axes[0].get_ylim()[::-1])
+            plt.setp(axes[1], xlabel=r'$T-T_p$ (days)',
+                     ylim=axes[1].get_ylim()[::-1],
+                     ylabel=r"$r' - 2.5 \log{\Delta}$ (mag)")
+            axes[0].legend(numpoints=1, prop=dict(size='medium'))
+
+            fig.canvas.draw()
+            fig.savefig(self.minion_file('rp-vs-rh.png'), dpi=200)
+            fig.savefig(self.minion_file('rp-vs-rh.pdf'), dpi=200)
 
         ######################################################################
         fig.clear()
@@ -85,21 +86,23 @@ class PlotCometPhot(TableMinion):
                 plt.GridSpec(2, 1, wspace=0, hspace=0)]
 
         i = comet.tab['filter'] == 'gp'
-        for ap, color in zip('26', 'rb'):
-            t = tmtp[i]
-            m = comet.tab['m' + ap][i]
-            merr = comet.tab['merr' + ap][i]
-            kwargs = dict(color=color, label=ap + '" radius', **opts)
-            axes[0].errorbar(t, m, merr, **kwargs)
-            axes[1].errorbar(t, m - d_correction[i], merr, **kwargs)
+        if i.sum() != 0:
+            for ap, color in zip('26', 'rb'):
+                t = tmtp[i]
+                m = comet.tab['m' + ap][i]
+                merr = comet.tab['merr' + ap][i]
+                kwargs = dict(color=color, label=ap + '" radius', **opts)
+                axes[0].errorbar(t, m, merr, **kwargs)
+                axes[1].errorbar(t, m - d_correction[i], merr, **kwargs)
 
-        plt.setp(axes[0], ylabel=r"$g'$ (mag)", ylim=axes[0].get_ylim()[::-1])
-        plt.setp(axes[1], xlabel=r'$T-T_p$ (days)',
-                 ylim=axes[1].get_ylim()[::-1],
-                 ylabel=r"$g' - 2.5 \log{\Delta}$ (mag)")
-        axes[0].legend(numpoints=1, prop=dict(size='medium'))
-        
-        fig.canvas.draw()
-        fig.savefig(self.minion_file('gp-vs-rh.png'), dpi=200)
-        fig.savefig(self.minion_file('gp-vs-rh.pdf'), dpi=200)
-        plt.close(fig)
+            plt.setp(axes[0], ylabel=r"$g'$ (mag)", ylim=axes[0].get_ylim()[::-1])
+            plt.setp(axes[1], xlabel=r'$T-T_p$ (days)',
+                     ylim=axes[1].get_ylim()[::-1],
+                     ylabel=r"$g' - 2.5 \log{\Delta}$ (mag)")
+
+            axes[0].legend(numpoints=1, prop=dict(size='medium'))
+
+            fig.canvas.draw()
+            fig.savefig(self.minion_file('gp-vs-rh.png'), dpi=200)
+            fig.savefig(self.minion_file('gp-vs-rh.pdf'), dpi=200)
+            plt.close(fig)

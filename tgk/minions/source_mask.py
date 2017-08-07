@@ -45,25 +45,33 @@ class SourceMask(FrameMinion):
     def run(self):
         import os
         import logging
+        from astropy.io import fits
+
+        logger = logging.getLogger('tgk.science')
         
-        logging.getLogger('tgk.science').debug('    Creating source mask.')
-
-        mask = self._mask()
-
         fn = self.minion_file('{}/{}.fits'.format(
             'source_mask', self.obs.frame_name))
         d = os.path.split(fn)[0]
         if not os.path.exists(d):
             os.mkdir(d)
-            self.logger.debug('Created directory {}.'.format(d))
+            logger.debug('Created directory {}.'.format(d))
 
-        mask.writeto(fn)
+        if os.path.exists(fn):
+            logger.debug('    Using previous source mask.')
+            return
+        else:
+            logger.debug('    Creating source mask.')
+
+        mask = self._mask()
+
+        hdu = fits.PrimaryHDU(mask)
+        hdu.writeto(fn)
 
     def _mask(self):
         import numpy as np
         from scipy.ndimage import binary_dilation, median_filter
         from astropy.wcs import WCS
-        from astropy.io import fits
+        from astropy.wcs.utils import skycoord_to_pixel
 
         mask = np.zeros_like(self.im.data, bool)
         for source in self.im.cat:
@@ -74,21 +82,17 @@ class SourceMask(FrameMinion):
             m[int(np.floor(source['Y'])), int(np.floor(source['X']))] = True
             mask += binary_dilation(m, iterations=ap)
 
-        w = WCS(self.im.header)
-        #ps = np.sqrt(np.abs(np.linalg.det(w.wcs.cd))) * 3600
         ap = int(300 / self.obs.pixel_scale.value * np.sqrt(2))  # 10 arcmin
 
-        g = self.geom.get_frame(self.obs.frame_name)
-        yx = np.array(w.world2pix([g['ra predict']], ['dec predict'], 0)).reshape((2,))
-        
+        xy = skycoord_to_pixel(self.geom.radec_predict, self.obs.wcs)
         m = np.zeros_like(mask, bool)
-        m[int(np.floor(yx[0])), int(np.floor(yx[1]))] = True
+        m[int(np.floor(xy[1])), int(np.floor(xy[0]))] = True
         mask += binary_dilation(m, iterations=ap)
         mask[~np.isfinite(self.im.data)] = True
 
         m = np.ones_like(mask, bool)
         m[self.obs.trimsec] = False
         mask += m
-        
+
         return mask.astype(int)
-        
+

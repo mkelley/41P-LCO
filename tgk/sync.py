@@ -13,21 +13,18 @@ class Sync:
 
     Parameters
     ----------
-    config_file : string
-      The name of a configuration file to read.
-    logger : logging.Logger, optional
-      Log to this `Logger` instance, otherwise log to the python
-      default.
+    debug : bool, optional
+      Enable any debuging parameters.
 
     """
 
-    def __init__(self):
+    def __init__(self, debug=False):
         import logging
         import astropy.units as u
         from astropy.time import Time
         from .core import setup_logger, open_log_file, config
 
-        self.logger = setup_logger('tgk.sync')
+        self.logger = setup_logger('tgk.sync', debug=debug)
         log_file = os.sep.join((config['download path'], 'tgk-sync.log'))
         open_log_file(log_file, 'tgk.sync')
 

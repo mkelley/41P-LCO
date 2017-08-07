@@ -12,22 +12,21 @@ class Science:
 
     Parameters
     ----------
-    logger : logging.Logger, optional
-      Log to this `Logger` instance, otherwise log to the python
-      default.
     rlevel : int, optional
       LCO reduction level to consider, or `None` for the most current.
     log_to_file : bool, optional
       Set to `False` to disable logging to a file, e.g., for debugging
       in interactive mode.
+    debug : bool, optional
+      Enable any debuging methods.
 
     """
 
-    def __init__(self, rlevel=None, log_to_file=True):
+    def __init__(self, rlevel=None, log_to_file=True, debug=False):
         import logging
         from .core import setup_logger, open_log_file, config
 
-        self.logger = setup_logger('tgk.science')
+        self.logger = setup_logger('tgk.science', debug=debug)
         if log_to_file:
             log_file = os.sep.join((config['science path'], 'tgk-science.log'))
             open_log_file(log_file, 'tgk.science')

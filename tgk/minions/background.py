@@ -29,14 +29,14 @@ class Background(FrameMinion):
     def run(self):
         import os
         import logging
-        import warnings
         import numpy as np
-        from numpy.ma.core import MaskedArrayFutureWarning
+        from astropy.io import fits
         
         logging.getLogger('tgk.science').debug('    Measuring background.')
 
-        mask = '{}/source_mask/{}.fits'.format(self.config['science path'],
-                                               self.obs.frame_name)
+        fn = '{}/source_mask/{}.fits'.format(self.config['science path'],
+                                             self.obs.frame_name)
+        mask = fits.getdata(fn).astype(bool)
         sky = self.im.data[~mask]
         
         row = [self.obs.frame_name, self.obs.filter]
@@ -44,7 +44,7 @@ class Background(FrameMinion):
         
         BackgroundTable().update(row)
 
-    def _est(self, sky, sigma_lower=3, sigma_upper=2.5, **kwargs):
+    def _est(self, sky, sigma_lower=3, sigma_upper=3, **kwargs):
         import numpy as np
         from astropy import stats
 
@@ -69,7 +69,7 @@ class BackgroundTable(ScienceTable):
     _table_columns = [
         'frame', 'filter', 'bg', 'bgsig', 'bgarea'
     ]
-    _table_dtypes = ['U64', 'U2'] + [float, float, int] * 5
+    _table_dtypes = ['U64', 'U2', float, float, int]
     _table_meta = OrderedDict()
     _table_meta['filter'] = 'LCO filter name.'
     _table_meta['bg'] = 'Sigma-clipped background estimate, ADU/pixel.'
